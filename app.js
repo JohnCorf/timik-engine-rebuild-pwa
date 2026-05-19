@@ -143,14 +143,18 @@
     }, 1800);
   }
 
-  function updateJob(patch) {
+  function updateJob(patch, shouldRender = true) {
     const job = currentJob();
     if (!job) return;
     Object.assign(job, patch, { updatedAt: todayISO() });
     if (patch.status === "Completed" && !job.completedAt) job.completedAt = todayISO();
-    if (patch.status !== "Completed") job.completedAt = "";
+    if (patch.status && patch.status !== "Completed") job.completedAt = "";
     persist();
-    render();
+    if (shouldRender) render();
+  }
+
+  function updateJobField(key, val) {
+    updateJob({ [key]: val }, false);
   }
 
   function saveCurrentJob() {
@@ -248,16 +252,16 @@
       saved: "Saved Jobs",
       settings: "Settings"
     };
+    const headerAction = headerActions();
     $app.innerHTML = `<div class="app-shell">
       <header class="topbar">
         <div class="status-strip"></div>
-        <div class="header-row">
-          <button class="icon-btn" onclick="TIMIK.newJob()" title="New job">☰</button>
+        <div class="header-row clean-header">
           <div class="header-title">
             <strong>${titles[ui.tab]}</strong>
             <span>TIMIK Agriculture • Engine Rebuild Record</span>
           </div>
-          <button class="icon-btn" onclick="TIMIK.saveCurrentJob()" title="Save">▣</button>
+          <div class="header-actions no-print">${headerAction}</div>
         </div>
       </header>
       <main class="content">${content}<div class="app-footer">Powered by SouthWorx</div></main>
@@ -270,6 +274,20 @@
       </nav>
       <div class="toast ${ui.toast ? "show" : ""}">${moneySafe(ui.toast)}</div>
     </div>`;
+  }
+
+
+  function headerActions() {
+    if (ui.tab === "engine") {
+      return `<button class="top-action" onclick="TIMIK.saveCurrentJob()">Save Job</button>`;
+    }
+    if (ui.tab === "saved") {
+      return `<button class="top-action" onclick="TIMIK.newJob()">+ New Job</button>`;
+    }
+    if (ui.tab === "report") {
+      return `<button class="top-action" onclick="TIMIK.printWeeklyReport()">Export</button>`;
+    }
+    return "";
   }
 
   function tabBtn(id, icon, label) {
@@ -306,7 +324,7 @@
       </div>
       ${section("Customer & Machine", "👥", renderCustomer(j))}
       ${section("Engine Details", "⚙️", renderEngineDetails(j))}
-      ${section("Strip Inspection", "🔍", renderChecks("stripChecks", DEFAULT_CHECKS, j.stripChecks) + textarea("Strip-down notes / damage findings", j.stripNotes, "TIMIK.updateJob({stripNotes:this.value})"))}
+      ${section("Strip Inspection", "🔍", renderChecks("stripChecks", DEFAULT_CHECKS, j.stripChecks) + textarea("Strip-down notes / damage findings", j.stripNotes, "TIMIK.updateJobField('stripNotes',this.value)"))}
       ${section("Measurements & Tolerances", "📏", renderMeasurements(j))}
       ${section("Parts Used", "🧰", renderParts(j))}
       ${section("Rebuild Stages", "✅", renderStages(j))}
@@ -323,25 +341,25 @@
 
   function renderCustomer(j) {
     return `<div class="grid-2">
-      ${field("Customer", j.customer, "TIMIK.updateJob({customer:this.value})", "text", `list="customer-list"`)}
-      ${field("Contact", j.contact, "TIMIK.updateJob({contact:this.value})")}
-      ${field("Phone", j.phone, "TIMIK.updateJob({phone:this.value})", "tel")}
-      ${field("Email", j.email, "TIMIK.updateJob({email:this.value})", "email")}
-      ${field("Machine make", j.machineMake, "TIMIK.updateJob({machineMake:this.value})")}
-      ${field("Machine model", j.machineModel, "TIMIK.updateJob({machineModel:this.value})")}
-      ${field("Machine serial / registration", j.machineSerial, "TIMIK.updateJob({machineSerial:this.value})")}
-      ${field("Machine hours", j.machineHours, "TIMIK.updateJob({machineHours:this.value})", "number")}
+      ${field("Customer", j.customer, "TIMIK.updateJobField('customer',this.value)", "text", `list="customer-list"`)}
+      ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
+      ${field("Phone", j.phone, "TIMIK.updateJobField('phone',this.value)", "tel")}
+      ${field("Email", j.email, "TIMIK.updateJobField('email',this.value)", "email")}
+      ${field("Machine make", j.machineMake, "TIMIK.updateJobField('machineMake',this.value)")}
+      ${field("Machine model", j.machineModel, "TIMIK.updateJobField('machineModel',this.value)")}
+      ${field("Machine serial / registration", j.machineSerial, "TIMIK.updateJobField('machineSerial',this.value)")}
+      ${field("Machine hours", j.machineHours, "TIMIK.updateJobField('machineHours',this.value)", "number")}
     </div>
     <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(c)}"></option>`).join("")}</datalist>`;
   }
 
   function renderEngineDetails(j) {
     return `<div class="grid-2">
-      ${field("Engine make", j.engineMake, "TIMIK.updateJob({engineMake:this.value})")}
-      ${field("Engine model", j.engineModel, "TIMIK.updateJob({engineModel:this.value})")}
-      ${field("Engine serial", j.engineSerial, "TIMIK.updateJob({engineSerial:this.value})")}
-      ${field("Build reference", j.buildRef, "TIMIK.updateJob({buildRef:this.value})")}
-      ${select("Previous rebuild?", j.previousRebuild, ["Unknown", "No", "Yes"], "TIMIK.updateJob({previousRebuild:this.value})")}
+      ${field("Engine make", j.engineMake, "TIMIK.updateJobField('engineMake',this.value)")}
+      ${field("Engine model", j.engineModel, "TIMIK.updateJobField('engineModel',this.value)")}
+      ${field("Engine serial", j.engineSerial, "TIMIK.updateJobField('engineSerial',this.value)")}
+      ${field("Build reference", j.buildRef, "TIMIK.updateJobField('buildRef',this.value)")}
+      ${select("Previous rebuild?", j.previousRebuild, ["Unknown", "No", "Yes"], "TIMIK.updateJobField('previousRebuild',this.value)")}
       ${select("Job status", j.status, ["Not Started", "In Progress", "On Hold", "Completed"], "TIMIK.updateJob({status:this.value})")}
     </div>`;
   }
@@ -389,7 +407,7 @@
         ${field("Qty", d.qty, "TIMIK.setPartDraft('qty',this.value)", "number")}
       </div>
       <label class="check-item" style="grid-template-columns:30px 1fr;margin-bottom:10px;">
-        <input type="checkbox" ${d.addNotes ? "checked" : ""} onchange="TIMIK.setPartDraft('addNotes',this.checked)" />
+        <input type="checkbox" ${d.addNotes ? "checked" : ""} onchange="TIMIK.setPartDraft('addNotes',this.checked,true)" />
         <span>Add notes to this part</span>
       </label>
       ${d.addNotes ? textarea("Part notes", d.notes, "TIMIK.setPartDraft('notes',this.value)") : ""}
@@ -417,12 +435,12 @@
 
   function renderSignOff(j) {
     return `<div class="grid-2">
-      ${field("Engineer sign-off", j.signOffEngineer, "TIMIK.updateJob({signOffEngineer:this.value})")}
-      ${field("Sign-off date", j.signOffDate, "TIMIK.updateJob({signOffDate:this.value})", "date")}
+      ${field("Engineer sign-off", j.signOffEngineer, "TIMIK.updateJobField('signOffEngineer',this.value)")}
+      ${field("Sign-off date", j.signOffDate, "TIMIK.updateJobField('signOffDate',this.value)", "date")}
     </div>
-    ${textarea("Final notes", j.finalNotes, "TIMIK.updateJob({finalNotes:this.value})")}
-    ${textarea("Warranty notes", j.warrantyNotes, "TIMIK.updateJob({warrantyNotes:this.value})")}
-    ${textarea("Customer notes", j.customerNotes, "TIMIK.updateJob({customerNotes:this.value})")}`;
+    ${textarea("Final notes", j.finalNotes, "TIMIK.updateJobField('finalNotes',this.value)")}
+    ${textarea("Warranty notes", j.warrantyNotes, "TIMIK.updateJobField('warrantyNotes',this.value)")}
+    ${textarea("Customer notes", j.customerNotes, "TIMIK.updateJobField('customerNotes',this.value)")}`;
   }
 
   function renderPhotos(j, mode) {
@@ -593,9 +611,9 @@
     render();
   }
 
-  function setPartDraft(key, val) {
+  function setPartDraft(key, val, shouldRender = false) {
     ui.partDraft[key] = val;
-    render();
+    if (shouldRender) render();
   }
 
   function addPart() {
@@ -620,7 +638,6 @@
 
   function setMeasurementDraft(key, val) {
     ui.measurementDraft[key] = val;
-    render();
   }
 
   function addMeasurement() {
@@ -678,7 +695,6 @@
 
   function setDiaryDraft(key, val) {
     ui.diaryDraft[key] = val;
-    render();
   }
 
   function addDiaryEntry() {
@@ -732,7 +748,12 @@
     return text.split(/\n|,/).map(x => x.trim()).filter(Boolean).length;
   }
 
-  function setSavedSearch(v) { ui.savedSearch = v; render(); }
+  let savedSearchTimer = null;
+  function setSavedSearch(v) {
+    ui.savedSearch = v;
+    clearTimeout(savedSearchTimer);
+    savedSearchTimer = setTimeout(render, 250);
+  }
   function setSavedFilter(v) { ui.savedFilter = v; render(); }
 
   function openJob(id) {
@@ -850,7 +871,7 @@
   }
 
   window.TIMIK = {
-    setTab, newJob, saveCurrentJob, toggleSection, updateJob, setCheck, setStage,
+    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
