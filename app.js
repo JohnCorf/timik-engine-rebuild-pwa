@@ -1,9 +1,9 @@
-// TIMIK V6 settings and refresh fix - visible version, cache refresh, simple workshop settings
+// TIMIK V7 default engineer improvements - editable engineer fields and weekly engineer totals
 (() => {
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V6 Settings + Refresh Fix";
+  const APP_VERSION = "V7 Default Engineer Improvements";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
@@ -29,6 +29,7 @@
     updatedAt: todayISO(),
     completedAt: "",
     customer: "",
+    engineer: (state?.settings?.defaultEngineer || ""),
     contact: "",
     phone: "",
     email: "",
@@ -48,7 +49,7 @@
     stages: Object.fromEntries(DEFAULT_STAGES.map(x => [x, "Not Started"])),
     finalChecks: Object.fromEntries(DEFAULT_FINAL_CHECKS.map(x => [x, ""])),
     finalNotes: "",
-    signOffEngineer: "",
+    signOffEngineer: (state?.settings?.defaultEngineer || ""),
     signOffDate: "",
     warrantyNotes: "",
     customerNotes: "",
@@ -340,6 +341,7 @@
   function renderCustomer(j) {
     return `<div class="grid-2">
       ${field("Customer", j.customer, "TIMIK.updateJobField('customer',this.value)", "text", `list="customer-list"`)}
+      ${field("Engineer", j.engineer || state.settings?.defaultEngineer || "", "TIMIK.updateJobField('engineer',this.value)", "text", 'placeholder="Engineer name"')}
       ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
       ${field("Phone", j.phone, "TIMIK.updateJobField('phone',this.value)", "tel")}
       ${field("Email", j.email, "TIMIK.updateJobField('email',this.value)", "email")}
@@ -459,7 +461,7 @@
       <div class="section-body">
         <div class="grid-2">
           ${field("Date", d.date, "TIMIK.setDiaryDraft('date',this.value)", "date", "", "date-field")}
-          ${select("Engineer", d.engineer, ["", ...state.engineers], "TIMIK.setDiaryDraft('engineer',this.value)")}
+          ${field("Engineer", d.engineer, "TIMIK.setDiaryDraft('engineer',this.value)", "text", 'placeholder="Engineer name"')}
         </div>
         <div class="field"><label>Job / engine worked on</label><select class="select" onchange="TIMIK.setDiaryDraft('jobId',this.value)"><option value="">Select job</option>${jobOptions}</select></div>
         ${field("Hours", d.hours, "TIMIK.setDiaryDraft('hours',this.value)", "number", "step='0.25'")}
@@ -498,6 +500,12 @@
       const h = entries.filter(e => e.jobId === id).reduce((a,e) => a + num(e.hours), 0);
       return { job, hours: h };
     }).sort((a,b) => b.hours - a.hours);
+    const engineerTotals = entries.reduce((acc, e) => {
+      const name = (e.engineer || "Unassigned").trim() || "Unassigned";
+      acc[name] = (acc[name] || 0) + num(e.hours);
+      return acc;
+    }, {});
+    const hoursByEngineer = Object.entries(engineerTotals).map(([engineer, hours]) => ({ engineer, hours })).sort((a,b) => b.hours - a.hours);
     const content = `${renderHero()}
       <div class="section-card open"><button class="section-head"><span class="section-icon">📅</span><span>Week ${getWeekNumber(range.startDate)}</span><span></span></button>
       <div class="section-body">
@@ -516,6 +524,10 @@
       <div class="report-card">
         <h3 class="mini-title">Hours by job</h3>
         ${hoursByJob.map(r => `<div class="card-line"><span>${moneySafe(r.job?.jobNo || "Unknown")} ${moneySafe(r.job ? jobTitle(r.job) : "")}</span><strong>${r.hours.toFixed(2)}</strong></div>`).join("") || `<div class="empty">No hours logged for this week.</div>`}
+      </div>
+      <div class="report-card">
+        <h3 class="mini-title">Hours by engineer</h3>
+        ${hoursByEngineer.map(r => `<div class="card-line"><span>${moneySafe(r.engineer)}</span><strong>${r.hours.toFixed(2)}</strong></div>`).join("") || `<div class="empty">No engineer hours logged for this week.</div>`}
       </div>
       <div class="report-card">
         <h3 class="mini-title">Diary entries this week</h3>
@@ -545,6 +557,7 @@
       ${jobs.map(j => `<div class="saved-job-card">
         <div class="card-line"><h4>${moneySafe(j.jobNo)} ${moneySafe(jobTitle(j))}</h4><span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span></div>
         <div class="card-line"><span>Customer</span><strong>${moneySafe(j.customer || "-")}</strong></div>
+        <div class="card-line"><span>Engineer</span><strong>${moneySafe(j.engineer || j.signOffEngineer || "-")}</strong></div>
         <div class="card-line"><span>Updated</span><strong>${fmtDate(j.updatedAt)}</strong></div>
         <div class="action-row" style="margin-top:10px;">
           <button class="primary-btn" onclick="TIMIK.openJob('${j.id}')">Open</button>
@@ -569,7 +582,7 @@
       <h2 class="mini-title">Workshop Defaults</h2>
       <div class="settings-card">
         ${field("Workshop name", settings.workshopName || "TIMIK Agriculture", "TIMIK.updateSetting(\'workshopName\', this.value)")}
-        ${select("Default engineer", settings.defaultEngineer || "", ["", ...state.engineers], "TIMIK.updateSetting('defaultEngineer', this.value)")}
+        ${field("Default engineer", settings.defaultEngineer || "", "TIMIK.updateSetting(\'defaultEngineer\', this.value)", "text", 'placeholder="Engineer name"')}
         ${field("Default report email", settings.defaultEmail || "", "TIMIK.updateSetting(\'defaultEmail\', this.value)", "email", 'placeholder="workshop@example.co.uk"')}
         <p class="help">These are simple defaults only. They do not change old records.</p>
       </div>
@@ -578,7 +591,7 @@
       ${listLink("👥", "Customers", `${state.customers.length} saved customers`)}
       ${listLink("⚙️", "Engine Library", "Add preset engine types later")}
       ${listLink("🧰", "Parts Library", "Reuse frequent rebuild parts later")}
-      ${listLink("👷", "Engineers", state.engineers.join(", "))}
+      ${listLink("👷", "Engineer names", "Typed directly on jobs and diary entries")}
       <button class="secondary-btn full-width" onclick="TIMIK.exportData()">Export All Data</button>
       <button class="secondary-btn full-width" onclick="document.getElementById('importFile').click()">Import Data Backup</button>
       <input id="importFile" type="file" accept="application/json" style="display:none" onchange="TIMIK.importData(event)" />
@@ -883,6 +896,12 @@
   function updateSetting(key, val) {
     state.settings = state.settings || {};
     state.settings[key] = val;
+    if (key === "defaultEngineer") {
+      if (!ui.diaryDraft.engineer) ui.diaryDraft.engineer = val;
+      const job = currentJob();
+      if (job && !job.engineer) job.engineer = val;
+      if (job && !job.signOffEngineer) job.signOffEngineer = val;
+    }
     persist();
   }
 

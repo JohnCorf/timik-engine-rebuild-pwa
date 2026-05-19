@@ -1,6 +1,6 @@
 # TIMIK Agriculture – Engine Rebuild Record PWA
 
-Version: V6 Settings + Refresh Fix
+Version: V7 Default Engineer Improvements
 
 ## Upload to GitHub Pages
 
@@ -16,8 +16,14 @@ This version adds a visible app version number in Settings and a **Refresh App /
 If the phone shows an older layout:
 
 1. Open Settings inside the app.
-2. Check the app version says `V6 Settings + Refresh Fix`.
+2. Check the app version says `V7 Default Engineer Improvements`.
 3. Press **Refresh App / Clear Cache**.
 4. Let the app reload.
 
 Footer branding remains: Powered by SouthWorx.
+
+
+## V7 update
+- Default engineer now auto-fills new engine jobs and diary entries.
+- Engineer fields are typed text fields, not fixed dropdowns.
+- Weekly report now includes hours by engineer.
