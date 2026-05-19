@@ -1,4 +1,4 @@
-// TIMIK V4 buttons fixed - Save/New Job action strip under hero only
+// TIMIK V5 phone layout bug fixes - no stray header actions, diary date fix, weekly selector fix
 (() => {
   "use strict";
 
@@ -279,12 +279,8 @@
 
 
   function headerActions() {
-    if (ui.tab === "saved") {
-      return `<button class="top-action" onclick="TIMIK.newJob()">+ New Job</button>`;
-    }
-    if (ui.tab === "report") {
-      return `<button class="top-action" onclick="TIMIK.printWeeklyReport()">Export</button>`;
-    }
+    // Keep the top-right header clean on mobile.
+    // Page-specific actions live inside each tab where they make sense.
     return "";
   }
 
@@ -461,7 +457,7 @@
       <div class="section-card open"><button class="section-head"><span class="section-icon">➕</span><span>Add Daily Diary Entry</span><span></span></button>
       <div class="section-body">
         <div class="grid-2">
-          ${field("Date", d.date, "TIMIK.setDiaryDraft('date',this.value)", "date")}
+          ${field("Date", d.date, "TIMIK.setDiaryDraft('date',this.value)", "date", "", "date-field")}
           ${select("Engineer", d.engineer, ["", ...state.engineers], "TIMIK.setDiaryDraft('engineer',this.value)")}
         </div>
         <div class="field"><label>Job / engine worked on</label><select class="select" onchange="TIMIK.setDiaryDraft('jobId',this.value)"><option value="">Select job</option>${jobOptions}</select></div>
@@ -504,10 +500,10 @@
     const content = `${renderHero()}
       <div class="section-card open"><button class="section-head"><span class="section-icon">📅</span><span>Week ${getWeekNumber(range.startDate)}</span><span></span></button>
       <div class="section-body">
-        <div class="action-row">
-          <button class="secondary-btn" onclick="TIMIK.changeWeek(-1)">‹ Previous</button>
-          <button class="ghost-btn">${fmtDate(range.start)} – ${fmtDate(range.end)}</button>
-          <button class="secondary-btn" onclick="TIMIK.changeWeek(1)">Next ›</button>
+        <div class="week-selector no-print">
+          <button class="secondary-btn week-nav" onclick="TIMIK.changeWeek(-1)">‹ Previous</button>
+          <div class="week-range">${fmtDate(range.start)} – ${fmtDate(range.end)}</div>
+          <button class="secondary-btn week-nav" onclick="TIMIK.changeWeek(1)">Next ›</button>
         </div>
       </div></div>
       <div class="report-grid">

@@ -760,3 +760,66 @@ button {
     box-shadow: none;
   }
 }
+
+/* V5 mobile layout fixes */
+.header-actions:empty {
+  display: none;
+}
+
+.date-field,
+.date-field .input,
+input[type="date"] {
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.week-selector {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(0, 1.4fr) minmax(96px, 1fr);
+  gap: 8px;
+  align-items: stretch;
+}
+
+.week-selector .week-nav,
+.week-selector .week-range {
+  width: 100%;
+  min-width: 0;
+}
+
+.week-range {
+  min-height: var(--tap);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--navy);
+  font-weight: 800;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 8px;
+}
+
+@media (max-width: 420px) {
+  .week-selector {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .week-range {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    min-height: 42px;
+  }
+
+  .week-selector .week-nav:first-child {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .week-selector .week-nav:last-child {
+    grid-column: 2;
+    grid-row: 2;
+  }
+}
