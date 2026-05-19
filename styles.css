@@ -823,3 +823,45 @@ input[type="date"] {
     grid-row: 2;
   }
 }
+
+/* V6 settings + refresh fix */
+.settings-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 18px rgba(7,29,58,0.05);
+}
+
+.version-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.version-pill {
+  background: var(--blue-soft);
+  color: var(--blue-dark);
+  border: 1px solid #CFE3FF;
+  border-radius: 999px;
+  padding: 8px 11px;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.no-margin {
+  margin-top: 0 !important;
+  margin-bottom: 4px !important;
+}
+
+@media (max-width: 420px) {
+  .version-card {
+    grid-template-columns: 1fr;
+  }
+  .version-pill {
+    justify-self: start;
+  }
+}

@@ -1,31 +1,23 @@
 # TIMIK Agriculture – Engine Rebuild Record PWA
 
-A mobile-first workshop app for engine rebuild records, daily diary entries and weekly workshop reporting.
+Version: V6 Settings + Refresh Fix
 
-## Files
+## Upload to GitHub Pages
 
-Upload these files directly into the root of a GitHub repository:
+1. Extract this ZIP.
+2. Upload the extracted files to the root of your GitHub repository.
+3. Commit the changes.
+4. Make sure GitHub Pages is set to deploy from `main` and `/root`.
 
-- `index.html`
-- `app.js`
-- `styles.css`
-- `manifest.json`
-- `service-worker.js`
-- `icon-192.png`
-- `icon-512.png`
+## Important iPhone/iPad note
 
-## GitHub Pages setup
+This version adds a visible app version number in Settings and a **Refresh App / Clear Cache** button.
 
-1. Create a new public GitHub repository.
-2. Upload all files from this folder, not the ZIP itself.
-3. Go to **Settings > Pages**.
-4. Set source to **Deploy from a branch**.
-5. Select branch **main** and folder **/root**.
-6. Save.
-7. Open the GitHub Pages link.
+If the phone shows an older layout:
 
-## Notes
+1. Open Settings inside the app.
+2. Check the app version says `V6 Settings + Refresh Fix`.
+3. Press **Refresh App / Clear Cache**.
+4. Let the app reload.
 
-- Data is saved locally on the device using localStorage.
-- The app is intended to be simple, fast and reliable for workshop use.
-- Footer branding says: Powered by SouthWorx.
+Footer branding remains: Powered by SouthWorx.

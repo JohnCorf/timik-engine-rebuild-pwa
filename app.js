@@ -1,8 +1,9 @@
-// TIMIK V5 phone layout bug fixes - no stray header actions, diary date fix, weekly selector fix
+// TIMIK V6 settings and refresh fix - visible version, cache refresh, simple workshop settings
 (() => {
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
+  const APP_VERSION = "V6 Settings + Refresh Fix";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
@@ -57,7 +58,7 @@
   const blankDiary = () => ({
     id: uid(),
     date: todayISO(),
-    engineer: "",
+    engineer: (state?.settings?.defaultEngineer || ""),
     jobId: "",
     hours: "",
     workDone: "",
@@ -99,13 +100,13 @@
           customers: Array.isArray(parsed.customers) ? parsed.customers : [],
           engineers: Array.isArray(parsed.engineers) && parsed.engineers.length ? parsed.engineers : DEFAULT_ENGINEERS,
           currentJobId: parsed.currentJobId || null,
-          settings: parsed.settings || { passwordEnabled: false }
+          settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false, ...(parsed.settings || {}) }
         };
       }
     } catch (e) {
       console.warn(e);
     }
-    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { passwordEnabled: false } };
+    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false } };
   }
 
   function persist() {
@@ -265,7 +266,7 @@
           <div class="header-actions no-print">${headerAction}</div>
         </div>
       </header>
-      <main class="content">${content}<div class="app-footer">Powered by SouthWorx</div></main>
+      <main class="content">${content}<div class="app-footer">Powered by SouthWorx • ${APP_VERSION}</div></main>
       <nav class="bottom-tabs no-print">
         ${tabBtn("engine", "🔧", "Engine Job")}
         ${tabBtn("diary", "🗓️", "Daily Diary")}
@@ -555,22 +556,45 @@
   }
 
   function renderSettings() {
+    const settings = state.settings || {};
     const content = `${renderHero()}
+      <div class="settings-card version-card">
+        <div>
+          <h2 class="mini-title no-margin">App Version</h2>
+          <p class="help">Use this to check whether your phone is loading the newest GitHub Pages version.</p>
+        </div>
+        <div class="version-pill">${APP_VERSION}</div>
+      </div>
+
+      <h2 class="mini-title">Workshop Defaults</h2>
+      <div class="settings-card">
+        ${field("Workshop name", settings.workshopName || "TIMIK Agriculture", "TIMIK.updateSetting(\'workshopName\', this.value)")}
+        ${select("Default engineer", settings.defaultEngineer || "", ["", ...state.engineers], "TIMIK.updateSetting('defaultEngineer', this.value)")}
+        ${field("Default report email", settings.defaultEmail || "", "TIMIK.updateSetting(\'defaultEmail\', this.value)", "email", 'placeholder="workshop@example.co.uk"')}
+        <p class="help">These are simple defaults only. They do not change old records.</p>
+      </div>
+
       <h2 class="mini-title">Data Management</h2>
       ${listLink("👥", "Customers", `${state.customers.length} saved customers`)}
       ${listLink("⚙️", "Engine Library", "Add preset engine types later")}
       ${listLink("🧰", "Parts Library", "Reuse frequent rebuild parts later")}
       ${listLink("👷", "Engineers", state.engineers.join(", "))}
-      <h2 class="mini-title">App Settings</h2>
-      ${listLink("🔐", "Password Protection", "Can be added once the workflow is settled")}
       <button class="secondary-btn full-width" onclick="TIMIK.exportData()">Export All Data</button>
       <button class="secondary-btn full-width" onclick="document.getElementById('importFile').click()">Import Data Backup</button>
       <input id="importFile" type="file" accept="application/json" style="display:none" onchange="TIMIK.importData(event)" />
       <button class="danger-btn full-width" onclick="TIMIK.clearAllData()">Clear All Data</button>
+
+      <h2 class="mini-title">App Refresh</h2>
+      <div class="settings-card">
+        <p class="help">If your iPhone/iPad is showing old buttons or an old layout, press this. It clears the PWA cache and reloads the latest files.</p>
+        <button class="primary-btn full-width" onclick="TIMIK.refreshApp()">Refresh App / Clear Cache</button>
+      </div>
+
       <h2 class="mini-title">About</h2>
       ${listLink("ℹ️", "About TIMIK Engine Rebuild", "Fast workshop documentation for engine rebuilds")}
       ${listLink("📱", "PWA / Install", "Use Add to Home Screen on iPhone/iPad")}
-      <div class="footer-brand">Powered by SouthWorx</div>`;
+      ${listLink("🔐", "Password Protection", "Can be added once the workflow is settled")}
+      <div class="footer-brand">Powered by SouthWorx • ${APP_VERSION}</div>`;
     renderShell(content);
   }
 
@@ -822,7 +846,7 @@
   function emailWeeklyReport() {
     const subject = encodeURIComponent("TIMIK Agriculture - Weekly Workshop Report");
     const body = encodeURIComponent(weeklyReportText());
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+    window.location.href = `mailto:${encodeURIComponent(state.settings?.defaultEmail || "")}?subject=${subject}&body=${body}`;
   }
 
   function exportData() {
@@ -855,6 +879,31 @@
     reader.readAsText(file);
   }
 
+
+  function updateSetting(key, val) {
+    state.settings = state.settings || {};
+    state.settings[key] = val;
+    persist();
+  }
+
+  async function refreshApp() {
+    try {
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(reg => reg.unregister()));
+      }
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(key => caches.delete(key)));
+      }
+      showToast("App cache cleared. Reloading...");
+      setTimeout(() => window.location.reload(true), 600);
+    } catch (e) {
+      console.warn(e);
+      window.location.reload(true);
+    }
+  }
+
   function clearAllData() {
     if (!confirm("Clear all local app data? This cannot be undone.")) return;
     localStorage.removeItem(STORAGE_KEY);
@@ -873,7 +922,7 @@
     handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
     setSavedSearch, setSavedFilter, openJob, duplicateJob, deleteJob,
-    exportData, importData, clearAllData
+    exportData, importData, updateSetting, refreshApp, clearAllData
   };
 
   if ("serviceWorker" in navigator) {
