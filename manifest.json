@@ -4,8 +4,8 @@
   "description": "Mobile-first workshop documentation for agricultural engine rebuilds, daily diary entries and weekly reports.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0f172a",
+  "background_color": "#eceff3",
+  "theme_color": "#3b6ea5",
   "orientation": "portrait-primary",
   "icons": [
     {

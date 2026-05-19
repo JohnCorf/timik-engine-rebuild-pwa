@@ -17,6 +17,7 @@ const stageNames = ["Strip complete","Clean and inspect","Machining complete","B
 let parts = [{ partNumber:"", description:"", quantity:"" }];
 let photos = [];
 let stages = {};
+let currentJobId = null;
 
 function qs(id){return document.getElementById(id);}
 function clean(v){return v && String(v).trim() ? String(v).trim() : "-";}
@@ -39,6 +40,7 @@ function getData(){
   const data = {};
   fields.forEach(id => { if(qs(id)) data[id] = qs(id).value; });
   data.jobComplete = getJobComplete();
+  data.id = currentJobId;
   data.parts = parts;
   data.photos = photos;
   data.stages = stages;
@@ -46,6 +48,7 @@ function getData(){
   return data;
 }
 function setData(data){
+  currentJobId = data.id || null;
   fields.forEach(id => { if(qs(id) && data[id] !== undefined) qs(id).value = data[id]; });
   const radio = document.querySelector(`input[name="jobComplete"][value="${data.jobComplete || "no"}"]`);
   if(radio) radio.checked = true;
@@ -113,6 +116,9 @@ function renderPartsEditor(){
         <label><span>Part Number</span><input type="text" value="${escapeHtml(part.partNumber)}" data-part-field="partNumber" data-part-index="${index}" placeholder="Part number" /></label>
         <label><span>Description</span><input type="text" value="${escapeHtml(part.description)}" data-part-field="description" data-part-index="${index}" placeholder="Description" /></label>
         <label><span>Qty</span><input type="text" inputmode="numeric" value="${escapeHtml(part.quantity)}" data-part-field="quantity" data-part-index="${index}" placeholder="1" /></label>
+      </div>
+      <label class="part-note-toggle"><input type="checkbox" data-part-note-toggle="${index}" ${part.showNotes || part.notes ? "checked" : ""} /> <span>Add notes for this part</span></label>
+      <label class="part-notes ${part.showNotes || part.notes ? "" : "hidden"}"><span>Part Notes</span><textarea rows="2" data-part-field="notes" data-part-index="${index}" placeholder="Serial/batch, reason fitted, damage found, supplier note, etc.">${escapeHtml(part.notes || "")}</textarea></label>
       </div>`;
     list.appendChild(div);
   });
@@ -121,30 +127,43 @@ function renderPartsEditor(){
     parts[i][e.target.dataset.partField] = e.target.value;
     updatePreview();
   }));
+  list.querySelectorAll("[data-part-note-toggle]").forEach(cb => cb.addEventListener("change", e => {
+    const i = Number(e.target.dataset.partNoteToggle);
+    parts[i].showNotes = e.target.checked;
+    if(!e.target.checked) parts[i].notes = "";
+    renderPartsEditor(); updatePreview();
+  }));
   list.querySelectorAll("[data-delete-part]").forEach(btn => btn.addEventListener("click", e => {
     parts.splice(Number(e.target.dataset.deletePart), 1);
-    if(!parts.length) parts.push({ partNumber:"", description:"", quantity:"" });
+    if(!parts.length) parts.unshift({ partNumber:"", description:"", quantity:"", notes:"", showNotes:false });
     renderPartsEditor(); updatePreview();
   }));
 }
 function renderPartsPreview(){
   const usable = parts.filter(p => clean(p.partNumber) !== "-" || clean(p.description) !== "-" || clean(p.quantity) !== "-");
   if(!usable.length){qs("partsPreview").innerHTML = '<div class="parts-empty">-</div>'; return;}
-  const rows = usable.map(p => `<tr><td>${escapeHtml(clean(p.partNumber))}</td><td>${escapeHtml(clean(p.description))}</td><td class="qty-cell">${escapeHtml(clean(p.quantity))}</td></tr>`).join("");
-  qs("partsPreview").innerHTML = `<table><thead><tr><th>Part Number</th><th>Description</th><th class="qty-cell">Qty</th></tr></thead><tbody>${rows}</tbody></table>`;
+  const rows = usable.map(p => `<tr><td>${escapeHtml(clean(p.partNumber))}</td><td>${escapeHtml(clean(p.description))}${clean(p.notes) !== "-" ? `<div class="part-note-preview">${escapeHtml(clean(p.notes))}</div>` : ""}</td><td class="qty-cell">${escapeHtml(clean(p.quantity))}</td></tr>`).join("");
+  qs("partsPreview").innerHTML = `<table><thead><tr><th>Part Number</th><th>Description / Notes</th><th class="qty-cell">Qty</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
-function addPart(){parts.push({ partNumber:"", description:"", quantity:"" }); renderPartsEditor(); updatePreview();}
+function addPart(){parts.unshift({ partNumber:"", description:"", quantity:"", notes:"", showNotes:false }); renderPartsEditor(); updatePreview(); qs("partsList")?.scrollIntoView({behavior:"smooth", block:"start"});}
 
 function getSavedJobs(){try{return JSON.parse(localStorage.getItem(jobsKey)) || [];}catch{return [];}}
 function setSavedJobs(jobs){localStorage.setItem(jobsKey, JSON.stringify(jobs)); renderSavedJobs(); refreshDiaryJobOptions();}
 function saveJob(){
   const data = getData();
-  if(clean(data.jobNumber) === "-"){alert("Enter a job number before saving."); return;}
+  if(clean(data.customerName) === "-" && clean(data.engineSerial) === "-" && clean(data.jobNumber) === "-"){
+    alert("Add at least a customer name, engine serial or job number before saving.");
+    return;
+  }
   const jobs = getSavedJobs();
-  const existing = jobs.findIndex(j => j.jobNumber && j.jobNumber === data.jobNumber);
-  const record = { ...data, id: existing >= 0 ? jobs[existing].id : makeId(), savedAt: new Date().toISOString() };
+  let existing = currentJobId ? jobs.findIndex(j => j.id === currentJobId) : -1;
+  if(existing < 0 && clean(data.jobNumber) !== "-") existing = jobs.findIndex(j => j.jobNumber && j.jobNumber === data.jobNumber);
+  const id = existing >= 0 ? jobs[existing].id : makeId();
+  currentJobId = id;
+  const record = { ...data, id, savedAt: new Date().toISOString() };
   if(existing >= 0) jobs[existing] = record; else jobs.unshift(record);
   setSavedJobs(jobs);
+  localStorage.setItem(storageKey, JSON.stringify(record));
   qs("saveStatus").textContent = "Engine job saved";
 }
 function renderSavedJobs(){
@@ -212,17 +231,18 @@ function clearForm(){
   fields.forEach(id => { if(qs(id)) qs(id).value = ""; });
   qs("jobDate").value = today; qs("companyName").value = "TIMIK Agriculture";
   document.querySelector('input[name="jobComplete"][value="no"]').checked = true;
-  parts = [{ partNumber:"", description:"", quantity:"" }]; photos = []; stages = {};
+  currentJobId = null;
+  parts = [{ partNumber:"", description:"", quantity:"", notes:"", showNotes:false }]; photos = []; stages = {};
   renderStagesEditor(); renderPartsEditor(); renderPhotoPreviews(); updatePreview();
 }
 function loadSample(){
-  setData({companyName:"TIMIK Agriculture",jobNumber:"TIMIK-000124",jobDate:today,engineer:"D. Smith",labourHours:"7.5",machineHours:"4280",customerName:"Greenfield Farm",contactDetails:"office@example.co.uk / 01234 567890",address:"Greenfield Farm\nWinchester Road\nHampshire",machine:"Massey Ferguson tractor",serialNumber:"MF-123456",engineMake:"Perkins",engineModel:"1104",engineSerial:"PK1104-987654",buildReference:"RB-2026-014",previousRebuild:"Unknown",jobStatus:"In Progress",oilCondition:"Metal Present",coolantCondition:"None Found",boreCondition:"Monitor",crankCondition:"Requires Polish",headCondition:"Pressure Test Required",ancillaryCondition:"Repair Required",damageFindings:"Engine stripped. Metal contamination found in sump. Main bearings worn and crank requires inspection before rebuild approval.",measurements:"Main bearing clearances recorded. Liner heights to be confirmed after cleaning. Crank journals measured and logged for machine shop.",torqueSettings:"Torque settings to be confirmed against engine manual before final build.",parts:[{partNumber:"PK-GSK-1104",description:"Full gasket set",quantity:"1"},{partNumber:"PK-MB-STD",description:"Main bearing set",quantity:"1"},{partNumber:"PK-BE-STD",description:"Big end bearing set",quantity:"1"}],stages:{"Strip complete":true,"Clean and inspect":true},finalChecks:"Final checks not yet completed.",notes:"Customer to be advised once machine shop report is returned.",jobComplete:"no"});
+  setData({companyName:"TIMIK Agriculture",jobNumber:"TIMIK-000124",jobDate:today,engineer:"D. Smith",labourHours:"7.5",machineHours:"4280",customerName:"Greenfield Farm",contactDetails:"office@example.co.uk / 01234 567890",address:"Greenfield Farm\nWinchester Road\nHampshire",machine:"Massey Ferguson tractor",serialNumber:"MF-123456",engineMake:"Perkins",engineModel:"1104",engineSerial:"PK1104-987654",buildReference:"RB-2026-014",previousRebuild:"Unknown",jobStatus:"In Progress",oilCondition:"Metal Present",coolantCondition:"None Found",boreCondition:"Monitor",crankCondition:"Requires Polish",headCondition:"Pressure Test Required",ancillaryCondition:"Repair Required",damageFindings:"Engine stripped. Metal contamination found in sump. Main bearings worn and crank requires inspection before rebuild approval.",measurements:"Main bearing clearances recorded. Liner heights to be confirmed after cleaning. Crank journals measured and logged for machine shop.",torqueSettings:"Torque settings to be confirmed against engine manual before final build.",parts:[{partNumber:"PK-GSK-1104",description:"Full gasket set",quantity:"1",notes:"Required after strip-down inspection",showNotes:true},{partNumber:"PK-MB-STD",description:"Main bearing set",quantity:"1",notes:"Check final size after crank polish",showNotes:true},{partNumber:"PK-BE-STD",description:"Big end bearing set",quantity:"1"}],stages:{"Strip complete":true,"Clean and inspect":true},finalChecks:"Final checks not yet completed.",notes:"Customer to be advised once machine shop report is returned.",jobComplete:"no"});
 }
 
 function makePartsEmailTable(usableParts){
   if(!usableParts.length) return "-";
-  const headers = ["Part Number", "Description", "Qty"];
-  const rows = usableParts.map(p => [clean(p.partNumber), clean(p.description), clean(p.quantity)]);
+  const headers = ["Part Number", "Description", "Qty", "Notes"];
+  const rows = usableParts.map(p => [clean(p.partNumber), clean(p.description), clean(p.quantity), clean(p.notes)]);
   const widths = headers.map((h, i) => Math.max(h.length, ...rows.map(r => r[i].length)) + 4);
   const formatRow = row => row.map((cell, i) => String(cell).padEnd(widths[i], " ")).join("");
   return [formatRow(headers), formatRow(widths.map(w => "-".repeat(Math.max(3, w - 4)))), ...rows.map(formatRow)].join("\n");
