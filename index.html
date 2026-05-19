@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TIMIK Rebuilds" />
+  <title>TIMIK Agriculture Engine Rebuild Records</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <section class="lock-screen" id="lockScreen">
+    <div class="lock-card">
+      <p class="eyebrow">TIMIK Agriculture</p>
+      <h1>Engine Rebuild Records</h1>
+      <p class="subtitle">Fast workshop documentation for agricultural engine rebuilds.</p>
+      <label><span>Access Code</span><input id="accessCode" type="password" autocomplete="current-password" placeholder="Enter access code" /></label>
+      <button class="btn primary full" id="unlockBtn" type="button">Unlock App</button>
+      <p class="lock-error" id="lockError"></p>
+      <p class="powered">Powered by SouthWorx</p>
+    </div>
+  </section>
+
+  <div class="app-content locked" id="appContent">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">TIMIK Agriculture</p>
+        <h1>Engine Rebuild Records</h1>
+        <p class="subtitle">Create rebuild records, daily diary entries and weekly workshop reports from phone, tablet or desktop.</p>
+      </div>
+      <button class="btn ghost" id="settingsBtn" type="button">Settings</button>
+    </header>
+
+    <nav class="tab-nav" aria-label="App sections">
+      <button class="tab-btn active" data-tab="job" type="button">Engine Job</button>
+      <button class="tab-btn" data-tab="diary" type="button">Daily Diary</button>
+      <button class="tab-btn" data-tab="report" type="button">Weekly Report</button>
+    </nav>
+
+    <main class="app-shell">
+      <section class="card form-card" id="jobTab">
+        <div class="section-header">
+          <h2>Engine Rebuild Record</h2>
+          <p>Use this as the main job file for each engine rebuild.</p>
+        </div>
+        <div class="quick-actions sticky-actions">
+          <button class="btn primary" id="saveJobBtn" type="button">Save Engine Job</button>
+          <button class="btn" id="sampleBtn" type="button">Load Sample</button>
+          <button class="btn danger" id="clearBtn" type="button">Clear</button>
+        </div>
+
+        <details class="manager-box">
+          <summary>Saved Engine Jobs</summary>
+          <div class="manager-content"><div id="savedJobsList" class="saved-list scrollable-list"></div></div>
+        </details>
+
+        <details class="manager-box">
+          <summary>Customer Database</summary>
+          <div class="manager-content">
+            <p class="helper">Save regular customers and reuse them on future engine jobs.</p>
+            <div class="quick-actions"><button class="btn" id="saveCustomerBtn" type="button">Save Current Customer</button></div>
+            <div id="customerList" class="saved-list scrollable-list"></div>
+          </div>
+        </details>
+
+        <hr />
+        <div class="section-header compact"><h2>Job, Customer & Machine</h2></div>
+        <div class="grid two">
+          <label><span>Workshop / Company</span><input id="companyName" type="text" placeholder="TIMIK Agriculture" /></label>
+          <label><span>Job Number</span><input id="jobNumber" type="text" placeholder="TIMIK-0001" /></label>
+          <label><span>Date Opened</span><input id="jobDate" type="date" /></label>
+          <label><span>Engineer</span><input id="engineer" type="text" placeholder="Engineer name" /></label>
+          <label><span>Customer Name</span><input id="customerName" type="text" placeholder="Customer / farm / business" /></label>
+          <label><span>Contact Details</span><input id="contactDetails" type="text" placeholder="Phone or email" /></label>
+        </div>
+        <label><span>Customer Address</span><textarea id="address" rows="3" placeholder="Customer address"></textarea></label>
+        <div class="grid two">
+          <label><span>Machine</span><input id="machine" type="text" placeholder="Tractor / telehandler / harvester / other" /></label>
+          <label><span>Machine Serial / Registration</span><input id="serialNumber" type="text" placeholder="Serial number / registration" /></label>
+          <label><span>Machine Hours</span><input id="machineHours" type="text" inputmode="numeric" placeholder="4280" /></label>
+          <label><span>Current Labour Hours</span><input id="labourHours" type="text" inputmode="decimal" placeholder="3.5" /></label>
+        </div>
+
+        <hr />
+        <div class="section-header compact"><h2>Engine Details</h2></div>
+        <div class="grid two">
+          <label><span>Engine Make</span><input id="engineMake" type="text" placeholder="Perkins / Deutz / John Deere / FPT" /></label>
+          <label><span>Engine Model</span><input id="engineModel" type="text" placeholder="Engine model" /></label>
+          <label><span>Engine Serial Number</span><input id="engineSerial" type="text" placeholder="Engine serial" /></label>
+          <label><span>Build / Rebuild Reference</span><input id="buildReference" type="text" placeholder="Build reference" /></label>
+        </div>
+        <div class="grid two">
+          <label><span>Previous Rebuild?</span><select id="previousRebuild"><option value="Unknown">Unknown</option><option>No</option><option>Yes</option></select></label>
+          <label><span>Overall Job Status</span><select id="jobStatus"><option>In Progress</option><option>Waiting for Parts</option><option>Waiting for Machining</option><option>Ready for Final Check</option><option>Complete</option></select></label>
+        </div>
+
+        <hr />
+        <div class="section-header compact"><h2>Strip-Down Inspection & Findings</h2></div>
+        <div class="grid two">
+          <label><span>Oil Condition</span><select id="oilCondition"><option>Not Checked</option><option>Clean</option><option>Contaminated</option><option>Metal Present</option><option>Water Present</option></select></label>
+          <label><span>Coolant / Water Contamination</span><select id="coolantCondition"><option>Not Checked</option><option>None Found</option><option>Minor</option><option>Major</option></select></label>
+          <label><span>Bore / Liner Condition</span><select id="boreCondition"><option>Not Checked</option><option>Pass</option><option>Monitor</option><option>Fail</option></select></label>
+          <label><span>Crankshaft Condition</span><select id="crankCondition"><option>Not Checked</option><option>Pass</option><option>Requires Polish</option><option>Requires Regrind</option><option>Fail</option></select></label>
+          <label><span>Cylinder Head Condition</span><select id="headCondition"><option>Not Checked</option><option>Pass</option><option>Pressure Test Required</option><option>Repair Required</option><option>Fail</option></select></label>
+          <label><span>Turbo / Ancillaries</span><select id="ancillaryCondition"><option>Not Checked</option><option>Pass</option><option>Repair Required</option><option>Replace</option></select></label>
+        </div>
+        <label><span>Damage Findings</span><textarea id="damageFindings" rows="5" placeholder="Main findings from strip-down, failed components, contamination, wear, cause of failure, etc."></textarea></label>
+
+        <hr />
+        <div class="section-header compact"><h2>Measurements, Clearances & Torque Notes</h2></div>
+        <label><span>Measurements / Tolerances</span><textarea id="measurements" rows="5" placeholder="Bearing clearances, liner heights, crank journal sizes, bore measurements, valve clearances, etc."></textarea></label>
+        <label><span>Torque Settings / Build Notes</span><textarea id="torqueSettings" rows="4" placeholder="Torque values used, angle settings, special build notes, sealant notes, timing notes, etc."></textarea></label>
+
+        <hr />
+        <div class="parts-header"><div><h2>Parts Used / Required</h2><p>Add parts fitted or required for this rebuild.</p></div><button class="btn small primary" id="addPartBtn" type="button">+ Add Part</button></div>
+        <div class="parts-list" id="partsList"></div>
+
+        <hr />
+        <div class="section-header compact"><h2>Rebuild Stage Sign-Off</h2></div>
+        <div class="check-grid" id="stageChecks"></div>
+        <label><span>Final Checks / Completion Notes</span><textarea id="finalChecks" rows="4" placeholder="Oil pressure, leaks, start-up checks, dyno/test run, final inspection, warranty notes."></textarea></label>
+
+        <div class="status-choice">
+          <span>Build Complete?</span>
+          <div class="radio-row">
+            <label class="radio-card"><input type="radio" name="jobComplete" value="yes" /><span>Yes</span></label>
+            <label class="radio-card"><input type="radio" name="jobComplete" value="no" checked /><span>No</span></label>
+          </div>
+        </div>
+
+        <div class="parts-header"><div><h2>Workshop Photos</h2><p>Add up to 3 photos from strip-down, build or final inspection.</p></div><button class="btn small" id="managePhotosBtn" type="button">Manage Photos</button></div>
+        <div id="inlinePhotoPreview" class="inline-photo-preview"></div>
+
+        <label><span>Additional Notes / History</span><textarea id="notes" rows="4" placeholder="Extra customer notes, warranty advice or internal history."></textarea></label>
+
+        <div class="button-row">
+          <button class="btn primary" id="printBtn" type="button">Print / Save PDF</button>
+          <button class="btn" id="emailBtn" type="button">Send Email</button>
+        </div>
+        <p class="small-note">For PDF email: use <strong>Print / Save PDF</strong>, then attach the saved PDF manually.</p>
+      </section>
+
+      <section class="card form-card hidden" id="diaryTab">
+        <div class="section-header"><h2>Daily Workshop Diary</h2><p>Log what happened each day against a saved engine job. These entries feed the weekly report.</p></div>
+        <div class="grid two">
+          <label><span>Date</span><input id="diaryDate" type="date" /></label>
+          <label><span>Engineer</span><input id="diaryEngineer" type="text" placeholder="Engineer name" /></label>
+          <label><span>Linked Job</span><select id="diaryJob"></select></label>
+          <label><span>Hours Worked</span><input id="diaryHours" type="text" inputmode="decimal" placeholder="7.5" /></label>
+        </div>
+        <label><span>Work Completed Today</span><textarea id="diaryWork" rows="5" placeholder="What was done today?"></textarea></label>
+        <label><span>Parts Fitted Today</span><textarea id="diaryParts" rows="3" placeholder="Parts fitted today"></textarea></label>
+        <label><span>Issues / Delays / Waiting On</span><textarea id="diaryIssues" rows="3" placeholder="Parts delay, machining, customer approval, fault found, etc."></textarea></label>
+        <div class="grid two">
+          <label><span>Daily Status</span><select id="diaryStatus"><option>In Progress</option><option>Parts Fitted</option><option>Waiting for Parts</option><option>Waiting for Machining</option><option>Final Checks</option><option>Complete</option></select></label>
+          <label><span>Engine Completed Today?</span><select id="diaryCompleted"><option>No</option><option>Yes</option></select></label>
+        </div>
+        <div class="button-row"><button class="btn primary" id="saveDiaryBtn" type="button">Save Diary Entry</button><button class="btn danger" id="clearDiaryBtn" type="button">Clear Diary Form</button></div>
+        <hr />
+        <div class="section-header compact"><h2>Saved Diary Entries</h2></div>
+        <div id="diaryList" class="saved-list diary-list scrollable-list large-scroll"></div>
+      </section>
+
+      <section class="card form-card hidden" id="reportTab">
+        <div class="section-header"><h2>Weekly Report</h2><p>Select a week and generate a simple report of hours, jobs, engines completed and parts fitted.</p></div>
+        <div class="grid two">
+          <label><span>Week Starting</span><input id="weekStart" type="date" /></label>
+          <label><span>Report Prepared By</span><input id="reportPreparedBy" type="text" placeholder="Name" /></label>
+        </div>
+        <div class="button-row"><button class="btn primary" id="buildReportBtn" type="button">Build Weekly Report</button><button class="btn" id="printReportBtn" type="button">Print / Save Report PDF</button><button class="btn" id="emailReportBtn" type="button">Email Weekly Report</button></div>
+        <p class="small-note">The weekly report is built from saved diary entries only.</p>
+      </section>
+
+      <section class="preview-wrap" id="previewPane">
+        <div class="preview-toolbar"><h2 id="previewTitle">Engine Job Preview</h2><span id="saveStatus">Saved locally</span></div>
+        <article class="job-card" id="jobCard">
+          <div class="job-card-watermark">TIMIK</div>
+          <div class="job-card-top">
+            <img id="previewLogo" class="preview-logo hidden" alt="Workshop Logo" />
+            <div><p class="eyebrow">Engine Rebuild Record</p><h2 data-preview="companyName">TIMIK Agriculture</h2></div>
+            <div class="job-number-box"><span>JOB</span><strong data-preview="jobNumber">-</strong></div>
+          </div>
+          <div class="status-badge" id="previewStatus">IN PROGRESS</div><div class="accent-line"></div>
+          <div class="workshop-contact-line"><span id="previewWorkshopPhone">-</span><span>•</span><span id="previewWorkshopEmail">-</span></div>
+          <div class="info-grid three"><div><span>Date</span><strong data-preview="jobDate">-</strong></div><div><span>Engineer</span><strong data-preview="engineer">-</strong></div><div><span>Labour Hours</span><strong data-preview="labourHours">-</strong></div></div>
+          <h3>Customer & Machine</h3>
+          <div class="info-grid two"><div><span>Customer</span><strong data-preview="customerName">-</strong><span>Contact</span><strong data-preview="contactDetails">-</strong><span>Address</span><strong data-preview="address">-</strong></div><div><span>Machine</span><strong data-preview="machine">-</strong><span>Machine Serial / Reg</span><strong data-preview="serialNumber">-</strong><span>Machine Hours</span><strong data-preview="machineHours">-</strong></div></div>
+          <h3>Engine Details</h3>
+          <div class="info-grid three"><div><span>Engine Make</span><strong data-preview="engineMake">-</strong></div><div><span>Engine Model</span><strong data-preview="engineModel">-</strong></div><div><span>Engine Serial</span><strong data-preview="engineSerial">-</strong></div><div><span>Build Ref</span><strong data-preview="buildReference">-</strong></div><div><span>Previous Rebuild</span><strong data-preview="previousRebuild">-</strong></div><div><span>Status</span><strong data-preview="jobStatus">-</strong></div></div>
+          <h3>Strip-Down Inspection</h3>
+          <div class="info-grid three"><div><span>Oil</span><strong data-preview="oilCondition">-</strong></div><div><span>Coolant</span><strong data-preview="coolantCondition">-</strong></div><div><span>Bore / Liners</span><strong data-preview="boreCondition">-</strong></div><div><span>Crankshaft</span><strong data-preview="crankCondition">-</strong></div><div><span>Head</span><strong data-preview="headCondition">-</strong></div><div><span>Ancillaries</span><strong data-preview="ancillaryCondition">-</strong></div></div>
+          <h3>Damage Findings</h3><div class="text-box large" data-preview="damageFindings">-</div>
+          <h3>Measurements / Tolerances</h3><div class="text-box large" data-preview="measurements">-</div>
+          <h3>Torque Settings / Build Notes</h3><div class="text-box" data-preview="torqueSettings">-</div>
+          <h3>Parts Used / Required</h3><div class="parts-preview" id="partsPreview"></div>
+          <h3>Rebuild Stages</h3><div class="parts-preview" id="stagePreview"></div>
+          <h3>Final Checks</h3><div class="text-box" data-preview="finalChecks">-</div>
+          <h3>Workshop Photos</h3><div id="previewPhotos" class="preview-photos"></div>
+          <h3>Additional Notes</h3><div class="text-box" data-preview="notes">-</div>
+          <p class="footer-note">Powered by SouthWorx</p>
+        </article>
+        <article class="job-card hidden" id="weeklyReportCard"></article>
+      </section>
+    </main>
+  </div>
+
+  <div class="settings-modal hidden" id="settingsModal">
+    <div class="settings-card">
+      <div class="settings-header"><h2>Workshop Settings</h2><button class="btn danger small" id="closeSettingsBtn" type="button">Close</button></div>
+      <div class="grid two"><label><span>Workshop Phone</span><input id="workshopPhone" type="text" placeholder="01234 567890" /></label><label><span>Workshop Email</span><input id="workshopEmail" type="text" placeholder="info@timik.co.uk" /></label></div>
+      <label><span>Footer Text</span><input id="footerText" type="text" placeholder="Powered by SouthWorx" /></label>
+      <label><span>Workshop Logo</span><input id="logoUpload" type="file" accept="image/*" /></label>
+      <div class="quick-actions"><button class="btn primary" id="saveSettingsBtn" type="button">Save Settings</button></div>
+    </div>
+  </div>
+
+  <div class="photo-modal hidden" id="photoModal">
+    <div class="settings-card">
+      <div class="settings-header"><h2>Workshop Photos</h2><button class="btn danger small" id="closePhotoBtn" type="button">Close</button></div>
+      <label><span>Add Photos</span><input id="photoUpload" type="file" accept="image/*" multiple capture="environment" /></label>
+      <p class="helper">The first 3 selected photos will be saved against the current engine job.</p>
+    </div>
+  </div>
+
+  <footer class="site-footer">Powered by SouthWorx</footer>
+  <script src="app.js"></script>
+</body>
+</html>
