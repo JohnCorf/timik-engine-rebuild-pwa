@@ -278,9 +278,6 @@
 
 
   function headerActions() {
-    if (ui.tab === "engine") {
-      return `<button class="top-action" onclick="TIMIK.saveCurrentJob()">Save Job</button>`;
-    }
     if (ui.tab === "saved") {
       return `<button class="top-action" onclick="TIMIK.newJob()">+ New Job</button>`;
     }
@@ -318,6 +315,10 @@
   function renderEngine() {
     const j = currentJob();
     const content = `${renderHero()}
+      <div class="engine-action-strip no-print">
+        <button class="primary-btn" onclick="TIMIK.saveCurrentJob()">Save Job</button>
+        <button class="secondary-btn" onclick="TIMIK.newJob()">+ New Job</button>
+      </div>
       <div class="job-meta">
         <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>
@@ -332,7 +333,6 @@
       ${section("Sign Off & Notes", "✍️", renderSignOff(j))}
       ${section("Photos", "📷", renderPhotos(j, "job"))}
       <div class="action-row no-print">
-        <button class="primary-btn full-width" onclick="TIMIK.saveCurrentJob()">Save Job</button>
         <button class="secondary-btn full-width" onclick="TIMIK.printJob()">Export / Print Job</button>
         <button class="ghost-btn full-width" onclick="TIMIK.emailJob()">Email Job Summary</button>
       </div>`;

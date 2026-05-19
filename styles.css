@@ -190,6 +190,24 @@ button {
   flex-wrap: wrap;
 }
 
+.engine-action-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: -4px 0 12px;
+}
+
+.engine-action-strip .primary-btn,
+.engine-action-strip .secondary-btn {
+  width: 100%;
+}
+
+@media (max-width: 360px) {
+  .engine-action-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
 .primary-btn,
 .secondary-btn,
 .danger-btn,
