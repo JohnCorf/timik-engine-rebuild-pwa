@@ -1,4 +1,4 @@
-const CACHE_NAME = "timik-engine-rebuild-v9-engine-only";
+const CACHE_NAME = "timik-engine-rebuild-v7-default-engineer-20260519";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -33,3 +33,11 @@ self.addEventListener("fetch", event => {
       .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
   );
 });
+
+
+// V10 wording update placeholder
+window.TIMIK_STATUS_OPTIONS = {
+  process: ["Pending", "In Progress", "Complete"],
+  external: ["Not Sent", "Sent", "Returned"],
+  inspection: ["Pass", "Fail", "Monitor"]
+};

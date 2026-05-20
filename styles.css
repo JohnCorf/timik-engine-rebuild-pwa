@@ -867,81 +867,19 @@ input[type="date"] {
 }
 
 
-/* TIMIK workflow layout rebuild */
-.workflow-meta {
-  border-left: 4px solid var(--blue);
-}
-.workflow-intro {
-  background: var(--blue-soft);
-  border: 1px solid #cfe3ff;
-  color: var(--navy);
-  border-radius: 14px;
-  padding: 12px;
-  margin-bottom: 14px;
-  font-size: 14px;
-  line-height: 1.45;
-}
-.photo-prompt {
-  display: grid;
-  gap: 10px;
-  background: #f8fbff;
-  border: 1px dashed #a9c8ec;
-  border-radius: 14px;
-  padding: 12px;
-  margin-top: 12px;
-}
-.photo-prompt strong {
-  display: block;
-  color: var(--blue-dark);
-  margin-bottom: 3px;
-}
-.photo-prompt span {
-  display: block;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.35;
-}
-.section-card .section-head span:nth-child(2) {
-  letter-spacing: 0.01em;
-}
-@media (max-width: 520px) {
-  .workflow-intro,
-  .photo-prompt {
-    font-size: 13px;
-  }
+.status-process{
+  background:#eef5ff;
+  border:1px solid #c5d8f5;
 }
 
-
-/* V9 engine-only workflow fixes */
-.check-item {
-  grid-template-columns: minmax(0, 1fr) minmax(168px, auto);
+.status-inspection{
+  background:#f5f7fa;
 }
 
-.check-item > span {
-  min-width: 0;
-}
-
-.segment {
-  min-width: 168px;
-}
-
-@media (max-width: 560px) {
-  .check-item {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .segment {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .segment button {
-    min-height: 42px;
-  }
-
-  .grid-2,
-  .grid-3 {
-    grid-template-columns: 1fr !important;
-  }
+.workflow-card{
+  border-radius:18px;
+  padding:18px;
+  margin-bottom:18px;
+  background:white;
+  box-shadow:0 2px 8px rgba(0,0,0,0.08);
 }
