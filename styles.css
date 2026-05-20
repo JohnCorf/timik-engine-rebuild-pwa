@@ -865,3 +865,35 @@ input[type="date"] {
     justify-self: start;
   }
 }
+
+/* V8 customer database improvements */
+.customer-tools {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+.customer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+}
+.customer-row:last-child { border-bottom: 0; }
+.small-btn {
+  width: auto;
+  min-height: 38px;
+  padding: 8px 12px;
+  flex: 0 0 auto;
+}
+@media (max-width: 640px) {
+  .customer-tools {
+    grid-template-columns: 1fr;
+  }
+  .customer-tools .secondary-btn {
+    width: 100%;
+  }
+}

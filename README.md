@@ -1,6 +1,6 @@
 # TIMIK Agriculture – Engine Rebuild Record PWA
 
-Version: V7 Default Engineer Improvements
+Version: V8 Customer Database Improvements
 
 ## Upload to GitHub Pages
 
@@ -16,7 +16,7 @@ This version adds a visible app version number in Settings and a **Refresh App /
 If the phone shows an older layout:
 
 1. Open Settings inside the app.
-2. Check the app version says `V7 Default Engineer Improvements`.
+2. Check the app version says `V8 Customer Database Improvements`.
 3. Press **Refresh App / Clear Cache**.
 4. Let the app reload.
 

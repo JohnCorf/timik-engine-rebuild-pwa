@@ -1,9 +1,9 @@
-// TIMIK V7 default engineer improvements - editable engineer fields and weekly engineer totals
+// TIMIK V8 customer database improvements - existing customer selection and job autofill
 (() => {
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V7 Default Engineer Improvements";
+  const APP_VERSION = "V8 Customer Database Improvements";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
@@ -21,6 +21,24 @@
   const moneySafe = (v) => String(v ?? "").replace(/[<>&]/g, s => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[s]));
   const num = (v) => Number.parseFloat(v || 0) || 0;
 
+  function normaliseCustomers(list = []) {
+    return list.map(c => {
+      if (typeof c === "string") return { id: uid(), name: c, contact: "", phone: "", email: "", address: "" };
+      return {
+        id: c.id || uid(),
+        name: c.name || c.customer || "",
+        contact: c.contact || "",
+        phone: c.phone || "",
+        email: c.email || "",
+        address: c.address || c.customerAddress || ""
+      };
+    }).filter(c => c.name);
+  }
+
+  function customerName(c) {
+    return typeof c === "string" ? c : (c?.name || "");
+  }
+
   const blankJob = () => ({
     id: uid(),
     jobNo: nextJobNo(),
@@ -29,6 +47,7 @@
     updatedAt: todayISO(),
     completedAt: "",
     customer: "",
+    customerAddress: "",
     engineer: (state?.settings?.defaultEngineer || ""),
     contact: "",
     phone: "",
@@ -98,7 +117,7 @@
         return {
           jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
           diary: Array.isArray(parsed.diary) ? parsed.diary : [],
-          customers: Array.isArray(parsed.customers) ? parsed.customers : [],
+          customers: normaliseCustomers(Array.isArray(parsed.customers) ? parsed.customers : []),
           engineers: Array.isArray(parsed.engineers) && parsed.engineers.length ? parsed.engineers : DEFAULT_ENGINEERS,
           currentJobId: parsed.currentJobId || null,
           settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false, ...(parsed.settings || {}) }
@@ -164,7 +183,7 @@
     const job = currentJob();
     if (!job) return;
     job.updatedAt = todayISO();
-    if (job.customer && !state.customers.includes(job.customer)) state.customers.push(job.customer);
+    upsertCustomerFromJob(job, false);
     persist();
     showToast("Job saved");
   }
@@ -339,7 +358,14 @@
   }
 
   function renderCustomer(j) {
-    return `<div class="grid-2">
+    const customerOptions = state.customers
+      .map(c => `<option value="${moneySafe(c.id)}">${moneySafe(customerName(c))}${c.phone ? " - " + moneySafe(c.phone) : ""}</option>`)
+      .join("");
+    return `<div class="customer-tools">
+      <div class="field"><label>Select existing customer</label><select class="select" onchange="TIMIK.applyCustomer(this.value)"><option value="">Choose customer...</option>${customerOptions}</select></div>
+      <button class="secondary-btn" onclick="TIMIK.saveCustomerFromCurrentJob()">Save customer from this job</button>
+    </div>
+    <div class="grid-2">
       ${field("Customer", j.customer, "TIMIK.updateJobField('customer',this.value)", "text", `list="customer-list"`)}
       ${field("Engineer", j.engineer || state.settings?.defaultEngineer || "", "TIMIK.updateJobField('engineer',this.value)", "text", 'placeholder="Engineer name"')}
       ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
@@ -350,7 +376,8 @@
       ${field("Machine serial / registration", j.machineSerial, "TIMIK.updateJobField('machineSerial',this.value)")}
       ${field("Machine hours", j.machineHours, "TIMIK.updateJobField('machineHours',this.value)", "number")}
     </div>
-    <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(c)}"></option>`).join("")}</datalist>`;
+    ${textarea("Customer address / notes", j.customerAddress || "", "TIMIK.updateJobField('customerAddress',this.value)")}
+    <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(customerName(c))}"></option>`).join("")}</datalist>`;
   }
 
   function renderEngineDetails(j) {
@@ -588,7 +615,11 @@
       </div>
 
       <h2 class="mini-title">Data Management</h2>
-      ${listLink("👥", "Customers", `${state.customers.length} saved customers`)}
+      <div class="settings-card">
+        <h3 class="mini-title no-margin">Customers</h3>
+        <p class="help">Customers are saved from the Engine Job tab and can then be selected on future jobs.</p>
+        ${state.customers.length ? state.customers.map(c => `<div class="customer-row"><span><strong>${moneySafe(customerName(c))}</strong><br><small class="help">${moneySafe(c.phone || c.email || c.contact || "No contact details saved")}</small></span><button class="danger-btn small-btn" onclick="TIMIK.deleteCustomer('${c.id}')">Delete</button></div>`).join("") : `<div class="empty">No customers saved yet.</div>`}
+      </div>
       ${listLink("⚙️", "Engine Library", "Add preset engine types later")}
       ${listLink("🧰", "Parts Library", "Reuse frequent rebuild parts later")}
       ${listLink("👷", "Engineer names", "Typed directly on jobs and diary entries")}
@@ -893,6 +924,56 @@
   }
 
 
+  function upsertCustomerFromJob(job, notify = true) {
+    if (!job || !String(job.customer || "").trim()) {
+      if (notify) showToast("Enter a customer name first");
+      return false;
+    }
+    state.customers = normaliseCustomers(state.customers);
+    const name = job.customer.trim();
+    const existing = state.customers.find(c => c.name.toLowerCase() === name.toLowerCase());
+    const record = {
+      id: existing?.id || uid(),
+      name,
+      contact: job.contact || "",
+      phone: job.phone || "",
+      email: job.email || "",
+      address: job.customerAddress || ""
+    };
+    if (existing) Object.assign(existing, record);
+    else state.customers.unshift(record);
+    persist();
+    if (notify) showToast(existing ? "Customer updated" : "Customer saved");
+    return true;
+  }
+
+  function saveCustomerFromCurrentJob() {
+    upsertCustomerFromJob(currentJob(), true);
+  }
+
+  function applyCustomer(customerId) {
+    if (!customerId) return;
+    const c = normaliseCustomers(state.customers).find(x => x.id === customerId);
+    if (!c) return showToast("Customer not found");
+    updateJob({
+      customer: c.name || "",
+      contact: c.contact || "",
+      phone: c.phone || "",
+      email: c.email || "",
+      customerAddress: c.address || ""
+    });
+    showToast("Customer loaded");
+  }
+
+  function deleteCustomer(customerId) {
+    const c = state.customers.find(x => x.id === customerId);
+    if (!c) return;
+    if (!confirm(`Delete customer ${customerName(c)}? Jobs already saved will not be deleted.`)) return;
+    state.customers = state.customers.filter(x => x.id !== customerId);
+    persist();
+    render();
+  }
+
   function updateSetting(key, val) {
     state.settings = state.settings || {};
     state.settings[key] = val;
@@ -941,7 +1022,7 @@
     handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
     setSavedSearch, setSavedFilter, openJob, duplicateJob, deleteJob,
-    exportData, importData, updateSetting, refreshApp, clearAllData
+    exportData, importData, updateSetting, refreshApp, clearAllData, applyCustomer, saveCustomerFromCurrentJob, deleteCustomer
   };
 
   if ("serviceWorker" in navigator) {
