@@ -910,3 +910,38 @@ input[type="date"] {
     font-size: 13px;
   }
 }
+
+
+/* V9 engine-only workflow fixes */
+.check-item {
+  grid-template-columns: minmax(0, 1fr) minmax(168px, auto);
+}
+
+.check-item > span {
+  min-width: 0;
+}
+
+.segment {
+  min-width: 168px;
+}
+
+@media (max-width: 560px) {
+  .check-item {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .segment {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .segment button {
+    min-height: 42px;
+  }
+
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+}

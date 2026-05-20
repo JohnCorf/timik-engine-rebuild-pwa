@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V8 TIMIK Workflow Layout Rebuild";
+  const APP_VERSION = "V9 Engine-Only Workflow Fix";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
@@ -348,24 +348,22 @@
   }
 
   function renderArrival(j) {
-    return `<div class="workflow-intro">Record the engine arriving, job details, customer/machine information and first photos before any work starts.</div>
+    return `<div class="workflow-intro">Record the engine as it arrives at TIMIK. This is engine-only: customer, courier/job details, engine identification, arrival condition and first photos.</div>
     <div class="grid-2">
       ${field("Job number", j.jobNo, "TIMIK.updateJobField('jobNo',this.value)")}
-      ${select("Job status", j.status, ["Not Started", "In Progress", "On Hold", "Completed"], "TIMIK.updateJob({status:this.value})")}
+      ${select("Job status", j.status, ["Not Started", "In Progress", "Waiting Parts", "Waiting Machining", "On Hold", "Ready For Dyno", "Ready To Ship", "Completed"], "TIMIK.updateJob({status:this.value})")}
       ${field("Customer", j.customer, "TIMIK.updateJobField('customer',this.value)", "text", `list="customer-list"`)}
       ${field("Engineer", j.engineer || state.settings?.defaultEngineer || "", "TIMIK.updateJobField('engineer',this.value)", "text", 'placeholder="Engineer name"')}
-      ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
+      ${field("Customer contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
       ${field("Phone", j.phone, "TIMIK.updateJobField('phone',this.value)", "tel")}
       ${field("Email", j.email, "TIMIK.updateJobField('email',this.value)", "email")}
-      ${field("Machine make", j.machineMake, "TIMIK.updateJobField('machineMake',this.value)")}
-      ${field("Machine model", j.machineModel, "TIMIK.updateJobField('machineModel',this.value)")}
-      ${field("Machine serial / registration", j.machineSerial, "TIMIK.updateJobField('machineSerial',this.value)")}
-      ${field("Machine hours", j.machineHours, "TIMIK.updateJobField('machineHours',this.value)", "number")}
+      ${field("Courier / delivery reference", j.deliveryRef || "", "TIMIK.updateJobField('deliveryRef',this.value)")}
       ${field("Engine make", j.engineMake, "TIMIK.updateJobField('engineMake',this.value)")}
       ${field("Engine model", j.engineModel, "TIMIK.updateJobField('engineModel',this.value)")}
-      ${field("Engine serial", j.engineSerial, "TIMIK.updateJobField('engineSerial',this.value)")}
-      ${field("Build reference", j.buildRef, "TIMIK.updateJobField('buildRef',this.value)")}
+      ${field("Engine serial number", j.engineSerial, "TIMIK.updateJobField('engineSerial',this.value)")}
+      ${field("Build / internal reference", j.buildRef, "TIMIK.updateJobField('buildRef',this.value)")}
       ${select("Previous rebuild?", j.previousRebuild, ["Unknown", "No", "Yes"], "TIMIK.updateJobField('previousRebuild',this.value)")}
+      ${select("Arrival condition", j.arrivalCondition || "Not Checked", ["Not Checked", "Good", "Damaged Packaging", "Visible Damage", "Missing Parts", "Urgent Review"], "TIMIK.updateJobField('arrivalCondition',this.value)")}
     </div>
     ${textarea("Arrival notes", j.arrivalNotes || "", "TIMIK.updateJobField('arrivalNotes',this.value)", 'placeholder="Courier condition, packaging condition, missing parts, visible damage, office notes..."')}
     ${photoPrompt("Arrival photos", "Photograph engine as received, all sides, labels and serial number.")}
@@ -382,14 +380,17 @@
   }
 
   function renderNonWorkshop(j) {
-    return `<div class="workflow-intro">Track anything leaving the workshop, office paperwork, machining and returned components.</div>
+    const externalOptions = ["Not Required", "To Send", "Sent", "Returned", "Complete", "Issue"];
+    return `<div class="workflow-intro">Track anything leaving TIMIK, including machining, reman work, rewind work and office paperwork. Use Issue where something is delayed, damaged or needs chasing.</div>
     <div class="grid-2">
-      ${select("Block / liners", j.blockStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('blockStatus',this.value)")}
-      ${select("Crank", j.crankStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('crankStatus',this.value)")}
-      ${select("Cylinder head", j.headStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('headStatus',this.value)")}
-      ${select("Turbo", j.turboStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('turboStatus',this.value)")}
-      ${select("Starter / alternator", j.electricalStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('electricalStatus',this.value)")}
-      ${select("Parts list to office", j.officePartsStatus || "Not Sent", ["Not Sent", "Sent", "Confirmed", "Issue"], "TIMIK.updateJobField('officePartsStatus',this.value)")}
+      ${select("Block / liners", j.blockStatus || "Not Required", externalOptions, "TIMIK.updateJobField('blockStatus',this.value)")}
+      ${select("Crankshaft", j.crankStatus || "Not Required", externalOptions, "TIMIK.updateJobField('crankStatus',this.value)")}
+      ${select("Cylinder head", j.headStatus || "Not Required", externalOptions, "TIMIK.updateJobField('headStatus',this.value)")}
+      ${select("Turbo", j.turboStatus || "Not Required", externalOptions, "TIMIK.updateJobField('turboStatus',this.value)")}
+      ${select("Starter motor", j.starterStatus || "Not Required", externalOptions, "TIMIK.updateJobField('starterStatus',this.value)")}
+      ${select("Alternator", j.alternatorStatus || "Not Required", externalOptions, "TIMIK.updateJobField('alternatorStatus',this.value)")}
+      ${select("Parts list to office", j.officePartsStatus || "Not Sent", ["Not Sent", "Sent", "Confirmed", "Waiting Parts", "Issue"], "TIMIK.updateJobField('officePartsStatus',this.value)")}
+      ${select("Customer return parts", j.returnPartsStatus || "Not Checked", ["Not Checked", "None", "To Box", "Boxed", "Sent With Engine", "Issue"], "TIMIK.updateJobField('returnPartsStatus',this.value)")}
     </div>
     ${textarea("External work notes", j.nonWorkshopNotes || "", "TIMIK.updateJobField('nonWorkshopNotes',this.value)", 'placeholder="OCS/machinist notes, reman notes, dates sent/returned, issues and office communication..."')}`;
   }
@@ -434,10 +435,6 @@
       ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
       ${field("Phone", j.phone, "TIMIK.updateJobField('phone',this.value)", "tel")}
       ${field("Email", j.email, "TIMIK.updateJobField('email',this.value)", "email")}
-      ${field("Machine make", j.machineMake, "TIMIK.updateJobField('machineMake',this.value)")}
-      ${field("Machine model", j.machineModel, "TIMIK.updateJobField('machineModel',this.value)")}
-      ${field("Machine serial / registration", j.machineSerial, "TIMIK.updateJobField('machineSerial',this.value)")}
-      ${field("Machine hours", j.machineHours, "TIMIK.updateJobField('machineHours',this.value)", "number")}
     </div>
     <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(c)}"></option>`).join("")}</datalist>`;
   }
@@ -713,7 +710,7 @@
   }
 
   function jobTitle(j) {
-    return [j.engineMake, j.engineModel].filter(Boolean).join(" ") || [j.machineMake, j.machineModel].filter(Boolean).join(" ") || "Engine Rebuild";
+    return [j.engineMake, j.engineModel].filter(Boolean).join(" ") || j.engineSerial || "Engine Rebuild";
   }
 
   function setCheck(key, label, val) {
