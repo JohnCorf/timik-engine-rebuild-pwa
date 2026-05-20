@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V9 TIMIK Workshop Process";
+  const APP_VERSION = "V9.1 TIMIK Process Fix";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Cold start checked", "Hot start checked", "Cold oil pressure recorded", "Hot oil pressure recorded", "Idle oil pressure recorded", "Max oil pressure recorded", "Leaks checked and addressed", "Full load test completed", "Dyno run sheet completed", "Final photos added", "Customer/warranty notes completed"];
@@ -399,6 +399,37 @@
       ${field("Build reference", j.buildRef, "TIMIK.updateJobField('buildRef',this.value)")}
       ${select("Previous rebuild?", j.previousRebuild, ["Unknown", "No", "Yes"], "TIMIK.updateJobField('previousRebuild',this.value)")}
       ${select("Job status", j.status, ["Not Started", "In Progress", "On Hold", "Completed"], "TIMIK.updateJob({status:this.value})")}
+    </div>`;
+  }
+
+
+
+  function renderTimikProcess(j) {
+    if (!j.workflowChecks) j.workflowChecks = {};
+    if (!j.workflowNotes) j.workflowNotes = {};
+    return `<div class="workflow-list">
+      ${DEFAULT_TIMIK_PROCESS.map(group => {
+        if (!j.workflowChecks[group.stage]) j.workflowChecks[group.stage] = {};
+        const done = group.items.filter(item => j.workflowChecks?.[group.stage]?.[item] === "Done").length;
+        return `<div class="workflow-stage-card">
+          <div class="workflow-stage-head">
+            <div><strong>${group.icon} ${moneySafe(group.stage)}</strong><span>${done}/${group.items.length} complete</span></div>
+            <span class="status-badge ${done === group.items.length ? "status-completed" : done ? "status-in-progress" : "status-not-started"}">${done === group.items.length ? "Complete" : done ? "In Progress" : "Not Started"}</span>
+          </div>
+          <div class="check-list compact">
+            ${group.items.map(item => {
+              const val = j.workflowChecks?.[group.stage]?.[item] || "";
+              return `<div class="check-item">
+                <span>${moneySafe(item)}</span>
+                <div class="segment">
+                  ${["Done","Issue","N/A"].map(x => `<button class="${val === x ? "active" : ""}" onclick="TIMIK.setWorkflowCheck('${group.stage.replace(/'/g, "\\'")}','${item.replace(/'/g, "\\'")}','${x}')">${x}</button>`).join("")}
+                </div>
+              </div>`;
+            }).join("")}
+          </div>
+          ${textarea(`${group.stage} notes`, j.workflowNotes?.[group.stage] || "", `TIMIK.updateWorkflowNote('${group.stage.replace(/'/g, "\\'")}',this.value)`)}
+        </div>`;
+      }).join("")}
     </div>`;
   }
 
