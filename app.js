@@ -1,21 +1,53 @@
-// TIMIK V9 workshop process integration - built around TIMIK engine workflow
+// TIMIK V7 default engineer improvements - editable engineer fields and weekly engineer totals
 (() => {
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V9.1 TIMIK Process Fix";
+  const APP_VERSION = "V7 Default Engineer Improvements";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
-  const DEFAULT_FINAL_CHECKS = ["Cold start checked", "Hot start checked", "Cold oil pressure recorded", "Hot oil pressure recorded", "Idle oil pressure recorded", "Max oil pressure recorded", "Leaks checked and addressed", "Full load test completed", "Dyno run sheet completed", "Final photos added", "Customer/warranty notes completed"];
-  const DEFAULT_STAGES = ["Arrival", "Strip Down", "Non Workshop", "Build", "Dyno", "Packaging", "Completed"];
-  const DEFAULT_TIMIK_PROCESS = [
-    { stage: "Arrival", icon: "📥", items: ["Engine unloaded from courier", "Arrival photos taken", "Paperwork created", "Job number assigned", "Engine stored until strip"] },
-    { stage: "Strip Down", icon: "🔧", items: ["Engine power washed before strip bay", "Photos taken of all 4 sides", "Serial number photo taken", "Serial number written on paperwork", "Damages photographed during strip", "Parts washed / ultrasonic cleaned as needed", "Painted parts paint-stripped where needed", "Mating faces cleaned and sanded as needed", "Block / crank / head marked with job number", "Only engine-ready parts placed on trolley"] },
-    { stage: "Non Workshop", icon: "🚚", items: ["Parts list / paperwork sent to office", "Block / crank / head prepared for OCS if required", "Starter / alternator packed for rewind if required", "Turbo packed for reman if required", "External work tracked and chased"] },
-    { stage: "Build", icon: "🏗️", items: ["Workspace cleared", "Block power washed", "Cylinders brushed / water jacket cleaned", "Block dried and lubed", "Block placed in jig", "Old and new parts trolleys brought into build area", "Engine built to manual / specification", "Oil filled before dyno"] },
-    { stage: "Dyno", icon: "🧪", items: ["Correct dyno kit fitted", "Engine run on dyno", "60% test completed", "Cold / hot start checked", "Cold / hot oil pressure checked at idle and max", "Leaks checked and addressed", "Full load test completed using engine spec", "Dyno run sheet completed", "Dyno kit removed", "All holes bunged"] },
-    { stage: "Packaging", icon: "📦", items: ["Engine power washed and dried", "Non-painted parts taped", "Engine painted and left to dry", "Tape removed after 24 hours", "Company parts removed", "Bungs replaced with new red bungs or sensors", "Openings taped", "TIMIK stickers fitted", "Heat tabs fitted to rear and side core plugs", "Engine strapped to shipping pallet with cardboard protection", "Photo taken before wrapping", "Address label fitted when available", "Loaded and photo taken on lorry"] }
-  ];
+  const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
+  const DEFAULT_STAGES = ["Strip complete", "Clean and inspect", "Machining complete", "Short motor built", "Cylinder head fitted", "Fuel system fitted", "Ancillaries fitted", "Final test/check"];
+  const TIMIK_PROCESS = {
+    "Arrival": [
+      "Engine unloaded and photographed",
+      "Paperwork created",
+      "Job number assigned",
+      "Engine stored ready for strip"
+    ],
+    "Strip Down": [
+      "Power wash completed",
+      "Photos of all sides and serial number",
+      "Damage photos taken",
+      "Parts cleaned and processed",
+      "Parts list sent to office"
+    ],
+    "Non Workshop": [
+      "Machining parts sent to OCS",
+      "Turbo sent for reman",
+      "Starter/alternator sent for rewind"
+    ],
+    "Build": [
+      "Workspace cleaned",
+      "Block cleaned and lubed",
+      "Parts trolley prepared",
+      "Engine assembled",
+      "Oil filled before dyno"
+    ],
+    "Dyno": [
+      "Cold start test completed",
+      "Hot oil pressure checked",
+      "Leak inspection completed",
+      "Full load test completed"
+    ],
+    "Packaging": [
+      "Engine painted",
+      "Heat tabs fitted",
+      "Engine strapped to pallet",
+      "Photos taken before shipping"
+    ]
+  };
+
 
   const $app = document.getElementById("app");
 
@@ -29,24 +61,6 @@
   const moneySafe = (v) => String(v ?? "").replace(/[<>&]/g, s => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[s]));
   const num = (v) => Number.parseFloat(v || 0) || 0;
 
-  function normaliseCustomers(list = []) {
-    return list.map(c => {
-      if (typeof c === "string") return { id: uid(), name: c, contact: "", phone: "", email: "", address: "" };
-      return {
-        id: c.id || uid(),
-        name: c.name || c.customer || "",
-        contact: c.contact || "",
-        phone: c.phone || "",
-        email: c.email || "",
-        address: c.address || c.customerAddress || ""
-      };
-    }).filter(c => c.name);
-  }
-
-  function customerName(c) {
-    return typeof c === "string" ? c : (c?.name || "");
-  }
-
   const blankJob = () => ({
     id: uid(),
     jobNo: nextJobNo(),
@@ -55,7 +69,6 @@
     updatedAt: todayISO(),
     completedAt: "",
     customer: "",
-    customerAddress: "",
     engineer: (state?.settings?.defaultEngineer || ""),
     contact: "",
     phone: "",
@@ -71,8 +84,6 @@
     previousRebuild: "Unknown",
     stripChecks: Object.fromEntries(DEFAULT_CHECKS.map(x => [x, ""])),
     stripNotes: "",
-    workflowChecks: Object.fromEntries(DEFAULT_TIMIK_PROCESS.map(s => [s.stage, Object.fromEntries(s.items.map(x => [x, ""]))])),
-    workflowNotes: Object.fromEntries(DEFAULT_TIMIK_PROCESS.map(s => [s.stage, ""])),
     measurements: [],
     parts: [],
     stages: Object.fromEntries(DEFAULT_STAGES.map(x => [x, "Not Started"])),
@@ -82,7 +93,8 @@
     signOffDate: "",
     warrantyNotes: "",
     customerNotes: "",
-    photos: []
+    photos: [],
+    processChecks: Object.fromEntries(Object.entries(TIMIK_PROCESS).flatMap(([k,v]) => v.map(x => [x, false])))
   });
 
   const blankDiary = () => ({
@@ -127,7 +139,7 @@
         return {
           jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
           diary: Array.isArray(parsed.diary) ? parsed.diary : [],
-          customers: normaliseCustomers(Array.isArray(parsed.customers) ? parsed.customers : []),
+          customers: Array.isArray(parsed.customers) ? parsed.customers : [],
           engineers: Array.isArray(parsed.engineers) && parsed.engineers.length ? parsed.engineers : DEFAULT_ENGINEERS,
           currentJobId: parsed.currentJobId || null,
           settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false, ...(parsed.settings || {}) }
@@ -138,6 +150,17 @@
     }
     return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false } };
   }
+
+  
+  window.toggleProcessCheck = function(jobId, item) {
+    const job = state.jobs.find(j => j.id === jobId);
+    if (!job) return;
+    if (!job.processChecks) job.processChecks = {};
+    job.processChecks[item] = !job.processChecks[item];
+    persist();
+    render();
+  };
+
 
   function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -157,7 +180,28 @@
     }
   }
 
-  function currentJob() {
+  
+  function renderTimikProcess(job) {
+    return `
+      <div class="card process-card">
+        <h3>TIMIK Workshop Process</h3>
+        ${Object.entries(TIMIK_PROCESS).map(([section, items]) => `
+          <div class="process-section">
+            <h4>${section}</h4>
+            ${items.map(item => `
+              <label class="process-check">
+                <input type="checkbox" ${job.processChecks?.[item] ? "checked" : ""} 
+                  onchange="window.toggleProcessCheck('${job.id}','${item.replace(/'/g,"")}')">
+                <span>${item}</span>
+              </label>
+            `).join("")}
+          </div>
+        `).join("")}
+      </div>
+    `;
+  }
+
+function currentJob() {
     return state.jobs.find(j => j.id === ui.currentJobId) || state.jobs[0];
   }
 
@@ -193,7 +237,7 @@
     const job = currentJob();
     if (!job) return;
     job.updatedAt = todayISO();
-    upsertCustomerFromJob(job, false);
+    if (job.customer && !state.customers.includes(job.customer)) state.customers.push(job.customer);
     persist();
     showToast("Job saved");
   }
@@ -353,7 +397,6 @@
       </div>
       ${section("Customer & Machine", "👥", renderCustomer(j))}
       ${section("Engine Details", "⚙️", renderEngineDetails(j))}
-      ${section("TIMIK Workshop Process", "🛠️", renderTimikProcess(j))}
       ${section("Strip Inspection", "🔍", renderChecks("stripChecks", DEFAULT_CHECKS, j.stripChecks) + textarea("Strip-down notes / damage findings", j.stripNotes, "TIMIK.updateJobField('stripNotes',this.value)"))}
       ${section("Measurements & Tolerances", "📏", renderMeasurements(j))}
       ${section("Parts Used", "🧰", renderParts(j))}
@@ -369,14 +412,7 @@
   }
 
   function renderCustomer(j) {
-    const customerOptions = state.customers
-      .map(c => `<option value="${moneySafe(c.id)}">${moneySafe(customerName(c))}${c.phone ? " - " + moneySafe(c.phone) : ""}</option>`)
-      .join("");
-    return `<div class="customer-tools">
-      <div class="field"><label>Select existing customer</label><select class="select" onchange="TIMIK.applyCustomer(this.value)"><option value="">Choose customer...</option>${customerOptions}</select></div>
-      <button class="secondary-btn" onclick="TIMIK.saveCustomerFromCurrentJob()">Save customer from this job</button>
-    </div>
-    <div class="grid-2">
+    return `<div class="grid-2">
       ${field("Customer", j.customer, "TIMIK.updateJobField('customer',this.value)", "text", `list="customer-list"`)}
       ${field("Engineer", j.engineer || state.settings?.defaultEngineer || "", "TIMIK.updateJobField('engineer',this.value)", "text", 'placeholder="Engineer name"')}
       ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
@@ -387,8 +423,7 @@
       ${field("Machine serial / registration", j.machineSerial, "TIMIK.updateJobField('machineSerial',this.value)")}
       ${field("Machine hours", j.machineHours, "TIMIK.updateJobField('machineHours',this.value)", "number")}
     </div>
-    ${textarea("Customer address / notes", j.customerAddress || "", "TIMIK.updateJobField('customerAddress',this.value)")}
-    <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(customerName(c))}"></option>`).join("")}</datalist>`;
+    <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(c)}"></option>`).join("")}</datalist>`;
   }
 
   function renderEngineDetails(j) {
@@ -399,37 +434,6 @@
       ${field("Build reference", j.buildRef, "TIMIK.updateJobField('buildRef',this.value)")}
       ${select("Previous rebuild?", j.previousRebuild, ["Unknown", "No", "Yes"], "TIMIK.updateJobField('previousRebuild',this.value)")}
       ${select("Job status", j.status, ["Not Started", "In Progress", "On Hold", "Completed"], "TIMIK.updateJob({status:this.value})")}
-    </div>`;
-  }
-
-
-
-  function renderTimikProcess(j) {
-    if (!j.workflowChecks) j.workflowChecks = {};
-    if (!j.workflowNotes) j.workflowNotes = {};
-    return `<div class="workflow-list">
-      ${DEFAULT_TIMIK_PROCESS.map(group => {
-        if (!j.workflowChecks[group.stage]) j.workflowChecks[group.stage] = {};
-        const done = group.items.filter(item => j.workflowChecks?.[group.stage]?.[item] === "Done").length;
-        return `<div class="workflow-stage-card">
-          <div class="workflow-stage-head">
-            <div><strong>${group.icon} ${moneySafe(group.stage)}</strong><span>${done}/${group.items.length} complete</span></div>
-            <span class="status-badge ${done === group.items.length ? "status-completed" : done ? "status-in-progress" : "status-not-started"}">${done === group.items.length ? "Complete" : done ? "In Progress" : "Not Started"}</span>
-          </div>
-          <div class="check-list compact">
-            ${group.items.map(item => {
-              const val = j.workflowChecks?.[group.stage]?.[item] || "";
-              return `<div class="check-item">
-                <span>${moneySafe(item)}</span>
-                <div class="segment">
-                  ${["Done","Issue","N/A"].map(x => `<button class="${val === x ? "active" : ""}" onclick="TIMIK.setWorkflowCheck('${group.stage.replace(/'/g, "\\'")}','${item.replace(/'/g, "\\'")}','${x}')">${x}</button>`).join("")}
-                </div>
-              </div>`;
-            }).join("")}
-          </div>
-          ${textarea(`${group.stage} notes`, j.workflowNotes?.[group.stage] || "", `TIMIK.updateWorkflowNote('${group.stage.replace(/'/g, "\\'")}',this.value)`)}
-        </div>`;
-      }).join("")}
     </div>`;
   }
 
@@ -657,11 +661,7 @@
       </div>
 
       <h2 class="mini-title">Data Management</h2>
-      <div class="settings-card">
-        <h3 class="mini-title no-margin">Customers</h3>
-        <p class="help">Customers are saved from the Engine Job tab and can then be selected on future jobs.</p>
-        ${state.customers.length ? state.customers.map(c => `<div class="customer-row"><span><strong>${moneySafe(customerName(c))}</strong><br><small class="help">${moneySafe(c.phone || c.email || c.contact || "No contact details saved")}</small></span><button class="danger-btn small-btn" onclick="TIMIK.deleteCustomer('${c.id}')">Delete</button></div>`).join("") : `<div class="empty">No customers saved yet.</div>`}
-      </div>
+      ${listLink("👥", "Customers", `${state.customers.length} saved customers`)}
       ${listLink("⚙️", "Engine Library", "Add preset engine types later")}
       ${listLink("🧰", "Parts Library", "Reuse frequent rebuild parts later")}
       ${listLink("👷", "Engineer names", "Typed directly on jobs and diary entries")}
@@ -716,25 +716,6 @@
     j.updatedAt = todayISO();
     persist();
     render();
-  }
-
-
-  function setWorkflowCheck(stage, item, val) {
-    const j = currentJob();
-    if (!j.workflowChecks) j.workflowChecks = {};
-    if (!j.workflowChecks[stage]) j.workflowChecks[stage] = {};
-    j.workflowChecks[stage][item] = val;
-    j.updatedAt = todayISO();
-    persist();
-    render();
-  }
-
-  function updateWorkflowNote(stage, val) {
-    const j = currentJob();
-    if (!j.workflowNotes) j.workflowNotes = {};
-    j.workflowNotes[stage] = val;
-    j.updatedAt = todayISO();
-    persist();
   }
 
   function setPartDraft(key, val, shouldRender = false) {
@@ -902,13 +883,6 @@
       `Engine: ${j.engineMake} ${j.engineModel}`,
       `Engine Serial: ${j.engineSerial}`,
       ``,
-      `TIMIK Workshop Process:`,
-      ...DEFAULT_TIMIK_PROCESS.map(group => {
-        const checks = j.workflowChecks?.[group.stage] || {};
-        const done = group.items.filter(item => checks[item] === "Done").length;
-        return `- ${group.stage}: ${done}/${group.items.length} complete${j.workflowNotes?.[group.stage] ? " - " + j.workflowNotes[group.stage] : ""}`;
-      }),
-      ``,
       `Parts Used:`,
       ...(j.parts || []).map(p => `- ${p.qty || 1} x ${p.partNo || ""} ${p.description || ""}${p.notes ? " (" + p.notes + ")" : ""}`),
       ``,
@@ -992,56 +966,6 @@
   }
 
 
-  function upsertCustomerFromJob(job, notify = true) {
-    if (!job || !String(job.customer || "").trim()) {
-      if (notify) showToast("Enter a customer name first");
-      return false;
-    }
-    state.customers = normaliseCustomers(state.customers);
-    const name = job.customer.trim();
-    const existing = state.customers.find(c => c.name.toLowerCase() === name.toLowerCase());
-    const record = {
-      id: existing?.id || uid(),
-      name,
-      contact: job.contact || "",
-      phone: job.phone || "",
-      email: job.email || "",
-      address: job.customerAddress || ""
-    };
-    if (existing) Object.assign(existing, record);
-    else state.customers.unshift(record);
-    persist();
-    if (notify) showToast(existing ? "Customer updated" : "Customer saved");
-    return true;
-  }
-
-  function saveCustomerFromCurrentJob() {
-    upsertCustomerFromJob(currentJob(), true);
-  }
-
-  function applyCustomer(customerId) {
-    if (!customerId) return;
-    const c = normaliseCustomers(state.customers).find(x => x.id === customerId);
-    if (!c) return showToast("Customer not found");
-    updateJob({
-      customer: c.name || "",
-      contact: c.contact || "",
-      phone: c.phone || "",
-      email: c.email || "",
-      customerAddress: c.address || ""
-    });
-    showToast("Customer loaded");
-  }
-
-  function deleteCustomer(customerId) {
-    const c = state.customers.find(x => x.id === customerId);
-    if (!c) return;
-    if (!confirm(`Delete customer ${customerName(c)}? Jobs already saved will not be deleted.`)) return;
-    state.customers = state.customers.filter(x => x.id !== customerId);
-    persist();
-    render();
-  }
-
   function updateSetting(key, val) {
     state.settings = state.settings || {};
     state.settings[key] = val;
@@ -1085,12 +1009,12 @@
   }
 
   window.TIMIK = {
-    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setCheck, setStage, setWorkflowCheck, updateWorkflowNote,
+    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
     setSavedSearch, setSavedFilter, openJob, duplicateJob, deleteJob,
-    exportData, importData, updateSetting, refreshApp, clearAllData, applyCustomer, saveCustomerFromCurrentJob, deleteCustomer
+    exportData, importData, updateSetting, refreshApp, clearAllData
   };
 
   if ("serviceWorker" in navigator) {

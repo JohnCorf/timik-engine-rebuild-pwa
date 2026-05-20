@@ -866,96 +866,23 @@ input[type="date"] {
   }
 }
 
-/* V8 customer database improvements */
-.customer-tools {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  align-items: end;
-  margin-bottom: 12px;
-}
-.customer-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-.customer-row:last-child { border-bottom: 0; }
-.small-btn {
-  width: auto;
-  min-height: 38px;
-  padding: 8px 12px;
-  flex: 0 0 auto;
-}
-@media (max-width: 640px) {
-  .customer-tools {
-    grid-template-columns: 1fr;
-  }
-  .customer-tools .secondary-btn {
-    width: 100%;
-  }
-}
 
-/* V9 TIMIK workshop process timeline */
-.process-timeline {
-  display: grid;
-  gap: 14px;
+.process-card{
+  margin-top:16px;
 }
-.process-stage-card {
-  border: 1px solid var(--border);
-  background: #f8fbff;
-  border-radius: 16px;
-  padding: 12px;
+.process-section{
+  margin-bottom:18px;
+  padding-bottom:10px;
+  border-bottom:1px solid #dbe4f0;
 }
-.process-stage-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 10px;
-  color: var(--navy);
+.process-section h4{
+  color:#0b4ea2;
+  margin-bottom:10px;
 }
-.process-stage-head > div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.process-icon {
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px;
-  background: #e7f0ff;
-}
-.progress-pill {
-  flex: 0 0 auto;
-  font-size: 12px;
-  font-weight: 800;
-  color: #0b4fa3;
-  background: #e7f0ff;
-  border: 1px solid #c8dcfb;
-  border-radius: 999px;
-  padding: 6px 9px;
-}
-.check-list.compact .check-item {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-@media (max-width: 520px) {
-  .process-stage-head {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .check-list.compact .check-item {
-    grid-template-columns: 1fr;
-  }
-  .check-list.compact .segment {
-    width: 100%;
-  }
-  .check-list.compact .segment button {
-    flex: 1;
-  }
+.process-check{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  margin-bottom:10px;
+  font-size:14px;
 }
