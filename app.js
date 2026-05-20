@@ -3,11 +3,75 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V7 Default Engineer Improvements";
+  const APP_VERSION = "V8 Stage 1 TIMIK Process Preview";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
   const DEFAULT_STAGES = ["Strip complete", "Clean and inspect", "Machining complete", "Short motor built", "Cylinder head fitted", "Fuel system fitted", "Ancillaries fitted", "Final test/check"];
+  const TIMIK_PROCESS_PREVIEW = [
+    {
+      stage: "Arrival",
+      items: [
+        "Engine unloaded and photographed",
+        "Office notified and paperwork created",
+        "Job number assigned",
+        "Engine stored safely until strip-down"
+      ]
+    },
+    {
+      stage: "Strip Down",
+      items: [
+        "Power wash before entering strip bay",
+        "Remove packaging and stabilise engine on strip bench",
+        "Photograph all sides and serial number",
+        "Strip engine and photograph any damage found",
+        "Clean, wash, blast or ultrasonic-clean parts as required",
+        "Mark block, crank and head with job number",
+        "Complete paperwork, send parts list to office and upload photos"
+      ]
+    },
+    {
+      stage: "Non Workshop",
+      items: [
+        "Send parts list and paperwork to office",
+        "Send block, crank and head for machining/reman as required",
+        "Pack starter/alternator for rewind where required",
+        "Pack turbo for reman where required"
+      ]
+    },
+    {
+      stage: "Build",
+      items: [
+        "Clear workspace",
+        "Power wash, brush, dry and lube block before jig setup",
+        "Bring new and cleaned old parts into build workshop",
+        "Build engine using correct manual/specification",
+        "Fill oil before moving to dyno"
+      ]
+    },
+    {
+      stage: "Dyno",
+      items: [
+        "Mount engine using correct dyno kit",
+        "Run 60% test including cold/hot start and oil pressure checks",
+        "Check for and address leaks",
+        "Complete dyno run sheet",
+        "Carry out full load test using correct engine specification"
+      ]
+    },
+    {
+      stage: "Packaging",
+      items: [
+        "Remove from dyno and remove dyno kit",
+        "Bung all holes, wash, dry, tape and paint engine",
+        "After paint cure, fit new red bungs/sensors as appropriate",
+        "Fit TIMIK sticker and heat tabs",
+        "Strap to shipping pallet with paint protection",
+        "Photograph engine before wrapping and when loaded"
+      ]
+    }
+  ];
+
 
   const $app = document.getElementById("app");
 
@@ -311,6 +375,24 @@
     </div>`;
   }
 
+
+  function renderTimikProcessPreview() {
+    return `<div class="process-preview">
+      <div class="process-note">
+        <strong>Stage 1 preview only.</strong>
+        This section is visual only for testing layout. No tick boxes or saving have been added yet.
+      </div>
+      ${TIMIK_PROCESS_PREVIEW.map(group => `
+        <div class="process-preview-stage">
+          <h3>${moneySafe(group.stage)}</h3>
+          <ul>
+            ${group.items.map(item => `<li>${moneySafe(item)}</li>`).join("")}
+          </ul>
+        </div>
+      `).join("")}
+    </div>`;
+  }
+
   function renderEngine() {
     const j = currentJob();
     const content = `${renderHero()}
@@ -328,6 +410,7 @@
       ${section("Measurements & Tolerances", "📏", renderMeasurements(j))}
       ${section("Parts Used", "🧰", renderParts(j))}
       ${section("Rebuild Stages", "✅", renderStages(j))}
+      ${section("TIMIK Workshop Process", "🏭", renderTimikProcessPreview())}
       ${section("Final Checks", "📋", renderChecks("finalChecks", DEFAULT_FINAL_CHECKS, j.finalChecks))}
       ${section("Sign Off & Notes", "✍️", renderSignOff(j))}
       ${section("Photos", "📷", renderPhotos(j, "job"))}

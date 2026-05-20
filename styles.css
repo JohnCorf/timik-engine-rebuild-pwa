@@ -865,3 +865,43 @@ input[type="date"] {
     justify-self: start;
   }
 }
+
+
+/* TIMIK Workshop Process preview - Stage 1 */
+.process-preview {
+  display: grid;
+  gap: 12px;
+}
+
+.process-note {
+  background: var(--blue-soft);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+  color: var(--ink);
+  line-height: 1.45;
+}
+
+.process-preview-stage {
+  background: #FFFFFF;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.process-preview-stage h3 {
+  margin: 0 0 8px;
+  color: var(--blue-dark);
+  font-size: 16px;
+}
+
+.process-preview-stage ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.process-preview-stage li {
+  margin: 7px 0;
+  line-height: 1.45;
+  color: var(--ink);
+}
