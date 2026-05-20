@@ -8,46 +8,6 @@
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
   const DEFAULT_STAGES = ["Strip complete", "Clean and inspect", "Machining complete", "Short motor built", "Cylinder head fitted", "Fuel system fitted", "Ancillaries fitted", "Final test/check"];
-  const TIMIK_PROCESS = {
-    "Arrival": [
-      "Engine unloaded and photographed",
-      "Paperwork created",
-      "Job number assigned",
-      "Engine stored ready for strip"
-    ],
-    "Strip Down": [
-      "Power wash completed",
-      "Photos of all sides and serial number",
-      "Damage photos taken",
-      "Parts cleaned and processed",
-      "Parts list sent to office"
-    ],
-    "Non Workshop": [
-      "Machining parts sent to OCS",
-      "Turbo sent for reman",
-      "Starter/alternator sent for rewind"
-    ],
-    "Build": [
-      "Workspace cleaned",
-      "Block cleaned and lubed",
-      "Parts trolley prepared",
-      "Engine assembled",
-      "Oil filled before dyno"
-    ],
-    "Dyno": [
-      "Cold start test completed",
-      "Hot oil pressure checked",
-      "Leak inspection completed",
-      "Full load test completed"
-    ],
-    "Packaging": [
-      "Engine painted",
-      "Heat tabs fitted",
-      "Engine strapped to pallet",
-      "Photos taken before shipping"
-    ]
-  };
-
 
   const $app = document.getElementById("app");
 
@@ -93,8 +53,7 @@
     signOffDate: "",
     warrantyNotes: "",
     customerNotes: "",
-    photos: [],
-    processChecks: Object.fromEntries(Object.entries(TIMIK_PROCESS).flatMap(([k,v]) => v.map(x => [x, false])))
+    photos: []
   });
 
   const blankDiary = () => ({
@@ -151,17 +110,6 @@
     return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false } };
   }
 
-  
-  window.toggleProcessCheck = function(jobId, item) {
-    const job = state.jobs.find(j => j.id === jobId);
-    if (!job) return;
-    if (!job.processChecks) job.processChecks = {};
-    job.processChecks[item] = !job.processChecks[item];
-    persist();
-    render();
-  };
-
-
   function persist() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
@@ -180,28 +128,7 @@
     }
   }
 
-  
-  function renderTimikProcess(job) {
-    return `
-      <div class="card process-card">
-        <h3>TIMIK Workshop Process</h3>
-        ${Object.entries(TIMIK_PROCESS).map(([section, items]) => `
-          <div class="process-section">
-            <h4>${section}</h4>
-            ${items.map(item => `
-              <label class="process-check">
-                <input type="checkbox" ${job.processChecks?.[item] ? "checked" : ""} 
-                  onchange="window.toggleProcessCheck('${job.id}','${item.replace(/'/g,"")}')">
-                <span>${item}</span>
-              </label>
-            `).join("")}
-          </div>
-        `).join("")}
-      </div>
-    `;
-  }
-
-function currentJob() {
+  function currentJob() {
     return state.jobs.find(j => j.id === ui.currentJobId) || state.jobs[0];
   }
 

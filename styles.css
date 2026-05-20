@@ -865,24 +865,3 @@ input[type="date"] {
     justify-self: start;
   }
 }
-
-
-.process-card{
-  margin-top:16px;
-}
-.process-section{
-  margin-bottom:18px;
-  padding-bottom:10px;
-  border-bottom:1px solid #dbe4f0;
-}
-.process-section h4{
-  color:#0b4ea2;
-  margin-bottom:10px;
-}
-.process-check{
-  display:flex;
-  gap:10px;
-  align-items:flex-start;
-  margin-bottom:10px;
-  font-size:14px;
-}
