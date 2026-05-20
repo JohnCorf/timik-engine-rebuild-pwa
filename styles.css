@@ -867,41 +867,46 @@ input[type="date"] {
 }
 
 
-/* TIMIK Workshop Process preview - Stage 1 */
-.process-preview {
-  display: grid;
-  gap: 12px;
+/* TIMIK workflow layout rebuild */
+.workflow-meta {
+  border-left: 4px solid var(--blue);
 }
-
-.process-note {
+.workflow-intro {
   background: var(--blue-soft);
-  border: 1px solid var(--line);
+  border: 1px solid #cfe3ff;
+  color: var(--navy);
   border-radius: 14px;
   padding: 12px;
-  color: var(--ink);
+  margin-bottom: 14px;
+  font-size: 14px;
   line-height: 1.45;
 }
-
-.process-preview-stage {
-  background: #FFFFFF;
-  border: 1px solid var(--line);
+.photo-prompt {
+  display: grid;
+  gap: 10px;
+  background: #f8fbff;
+  border: 1px dashed #a9c8ec;
   border-radius: 14px;
-  padding: 14px;
+  padding: 12px;
+  margin-top: 12px;
 }
-
-.process-preview-stage h3 {
-  margin: 0 0 8px;
+.photo-prompt strong {
+  display: block;
   color: var(--blue-dark);
-  font-size: 16px;
+  margin-bottom: 3px;
 }
-
-.process-preview-stage ul {
-  margin: 0;
-  padding-left: 20px;
+.photo-prompt span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
 }
-
-.process-preview-stage li {
-  margin: 7px 0;
-  line-height: 1.45;
-  color: var(--ink);
+.section-card .section-head span:nth-child(2) {
+  letter-spacing: 0.01em;
+}
+@media (max-width: 520px) {
+  .workflow-intro,
+  .photo-prompt {
+    font-size: 13px;
+  }
 }

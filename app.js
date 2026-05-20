@@ -3,75 +3,11 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V8 Stage 1 TIMIK Process Preview";
+  const APP_VERSION = "V8 TIMIK Workflow Layout Rebuild";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
   const DEFAULT_STAGES = ["Strip complete", "Clean and inspect", "Machining complete", "Short motor built", "Cylinder head fitted", "Fuel system fitted", "Ancillaries fitted", "Final test/check"];
-  const TIMIK_PROCESS_PREVIEW = [
-    {
-      stage: "Arrival",
-      items: [
-        "Engine unloaded and photographed",
-        "Office notified and paperwork created",
-        "Job number assigned",
-        "Engine stored safely until strip-down"
-      ]
-    },
-    {
-      stage: "Strip Down",
-      items: [
-        "Power wash before entering strip bay",
-        "Remove packaging and stabilise engine on strip bench",
-        "Photograph all sides and serial number",
-        "Strip engine and photograph any damage found",
-        "Clean, wash, blast or ultrasonic-clean parts as required",
-        "Mark block, crank and head with job number",
-        "Complete paperwork, send parts list to office and upload photos"
-      ]
-    },
-    {
-      stage: "Non Workshop",
-      items: [
-        "Send parts list and paperwork to office",
-        "Send block, crank and head for machining/reman as required",
-        "Pack starter/alternator for rewind where required",
-        "Pack turbo for reman where required"
-      ]
-    },
-    {
-      stage: "Build",
-      items: [
-        "Clear workspace",
-        "Power wash, brush, dry and lube block before jig setup",
-        "Bring new and cleaned old parts into build workshop",
-        "Build engine using correct manual/specification",
-        "Fill oil before moving to dyno"
-      ]
-    },
-    {
-      stage: "Dyno",
-      items: [
-        "Mount engine using correct dyno kit",
-        "Run 60% test including cold/hot start and oil pressure checks",
-        "Check for and address leaks",
-        "Complete dyno run sheet",
-        "Carry out full load test using correct engine specification"
-      ]
-    },
-    {
-      stage: "Packaging",
-      items: [
-        "Remove from dyno and remove dyno kit",
-        "Bung all holes, wash, dry, tape and paint engine",
-        "After paint cure, fit new red bungs/sensors as appropriate",
-        "Fit TIMIK sticker and heat tabs",
-        "Strap to shipping pallet with paint protection",
-        "Photograph engine before wrapping and when loaded"
-      ]
-    }
-  ];
-
 
   const $app = document.getElementById("app");
 
@@ -135,7 +71,7 @@
   let state = loadState();
   let ui = {
     tab: "engine",
-    openSections: ["Customer & Machine", "Engine Details", "Parts Used"],
+    openSections: ["Arrival", "Strip Down", "Parts"],
     currentJobId: state.currentJobId || null,
     diaryDraft: blankDiary(),
     partDraft: { partNo: "", description: "", qty: "1", addNotes: false, notes: "" },
@@ -239,7 +175,7 @@
     state.currentJobId = job.id;
     ui.currentJobId = job.id;
     ui.tab = "engine";
-    ui.openSections = ["Customer & Machine", "Engine Details", "Parts Used"];
+    ui.openSections = ["Arrival", "Strip Down", "Parts"];
     persist();
     showToast("New engine job created");
   }
@@ -375,24 +311,6 @@
     </div>`;
   }
 
-
-  function renderTimikProcessPreview() {
-    return `<div class="process-preview">
-      <div class="process-note">
-        <strong>Stage 1 preview only.</strong>
-        This section is visual only for testing layout. No tick boxes or saving have been added yet.
-      </div>
-      ${TIMIK_PROCESS_PREVIEW.map(group => `
-        <div class="process-preview-stage">
-          <h3>${moneySafe(group.stage)}</h3>
-          <ul>
-            ${group.items.map(item => `<li>${moneySafe(item)}</li>`).join("")}
-          </ul>
-        </div>
-      `).join("")}
-    </div>`;
-  }
-
   function renderEngine() {
     const j = currentJob();
     const content = `${renderHero()}
@@ -400,25 +318,113 @@
         <button class="primary-btn" onclick="TIMIK.saveCurrentJob()">Save Job</button>
         <button class="secondary-btn" onclick="TIMIK.newJob()">+ New Job</button>
       </div>
-      <div class="job-meta">
-        <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
+      <div class="job-meta workflow-meta">
+        <div>
+          <strong>Job: ${moneySafe(j.jobNo)}</strong>
+          <div class="help">Updated: ${fmtDate(j.updatedAt)} • ${moneySafe(jobTitle(j))}</div>
+        </div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>
       </div>
-      ${section("Customer & Machine", "👥", renderCustomer(j))}
-      ${section("Engine Details", "⚙️", renderEngineDetails(j))}
-      ${section("Strip Inspection", "🔍", renderChecks("stripChecks", DEFAULT_CHECKS, j.stripChecks) + textarea("Strip-down notes / damage findings", j.stripNotes, "TIMIK.updateJobField('stripNotes',this.value)"))}
-      ${section("Measurements & Tolerances", "📏", renderMeasurements(j))}
-      ${section("Parts Used", "🧰", renderParts(j))}
-      ${section("Rebuild Stages", "✅", renderStages(j))}
-      ${section("TIMIK Workshop Process", "🏭", renderTimikProcessPreview())}
-      ${section("Final Checks", "📋", renderChecks("finalChecks", DEFAULT_FINAL_CHECKS, j.finalChecks))}
-      ${section("Sign Off & Notes", "✍️", renderSignOff(j))}
-      ${section("Photos", "📷", renderPhotos(j, "job"))}
+      ${section("Arrival", "📦", renderArrival(j))}
+      ${section("Strip Down", "🔍", renderStripDown(j))}
+      ${section("Non Workshop", "🏭", renderNonWorkshop(j))}
+      ${section("Build", "🔧", renderBuild(j))}
+      ${section("Dyno", "📈", renderDyno(j))}
+      ${section("Packaging", "🚚", renderPackaging(j))}
+      ${section("Parts", "🧰", renderParts(j))}
+      ${section("Sign Off", "✍️", renderSignOff(j))}
       <div class="action-row no-print">
         <button class="secondary-btn full-width" onclick="TIMIK.printJob()">Export / Print Job</button>
         <button class="ghost-btn full-width" onclick="TIMIK.emailJob()">Email Job Summary</button>
       </div>`;
     renderShell(content);
+  }
+
+  function photoPrompt(title, helper) {
+    return `<div class="photo-prompt">
+      <div><strong>${moneySafe(title)}</strong><span>${moneySafe(helper)}</span></div>
+      <input class="input" type="file" accept="image/*" multiple onchange="TIMIK.handlePhotos(event,'job')" />
+    </div>`;
+  }
+
+  function renderArrival(j) {
+    return `<div class="workflow-intro">Record the engine arriving, job details, customer/machine information and first photos before any work starts.</div>
+    <div class="grid-2">
+      ${field("Job number", j.jobNo, "TIMIK.updateJobField('jobNo',this.value)")}
+      ${select("Job status", j.status, ["Not Started", "In Progress", "On Hold", "Completed"], "TIMIK.updateJob({status:this.value})")}
+      ${field("Customer", j.customer, "TIMIK.updateJobField('customer',this.value)", "text", `list="customer-list"`)}
+      ${field("Engineer", j.engineer || state.settings?.defaultEngineer || "", "TIMIK.updateJobField('engineer',this.value)", "text", 'placeholder="Engineer name"')}
+      ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
+      ${field("Phone", j.phone, "TIMIK.updateJobField('phone',this.value)", "tel")}
+      ${field("Email", j.email, "TIMIK.updateJobField('email',this.value)", "email")}
+      ${field("Machine make", j.machineMake, "TIMIK.updateJobField('machineMake',this.value)")}
+      ${field("Machine model", j.machineModel, "TIMIK.updateJobField('machineModel',this.value)")}
+      ${field("Machine serial / registration", j.machineSerial, "TIMIK.updateJobField('machineSerial',this.value)")}
+      ${field("Machine hours", j.machineHours, "TIMIK.updateJobField('machineHours',this.value)", "number")}
+      ${field("Engine make", j.engineMake, "TIMIK.updateJobField('engineMake',this.value)")}
+      ${field("Engine model", j.engineModel, "TIMIK.updateJobField('engineModel',this.value)")}
+      ${field("Engine serial", j.engineSerial, "TIMIK.updateJobField('engineSerial',this.value)")}
+      ${field("Build reference", j.buildRef, "TIMIK.updateJobField('buildRef',this.value)")}
+      ${select("Previous rebuild?", j.previousRebuild, ["Unknown", "No", "Yes"], "TIMIK.updateJobField('previousRebuild',this.value)")}
+    </div>
+    ${textarea("Arrival notes", j.arrivalNotes || "", "TIMIK.updateJobField('arrivalNotes',this.value)", 'placeholder="Courier condition, packaging condition, missing parts, visible damage, office notes..."')}
+    ${photoPrompt("Arrival photos", "Photograph engine as received, all sides, labels and serial number.")}
+    <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(c)}"></option>`).join("")}</datalist>`;
+  }
+
+  function renderStripDown(j) {
+    const stripItems = ["Power washed before strip bay", "Packaging removed", "Serial number photographed", "All sides photographed", "Damage photographed", "Parts through wash where required", "Painted parts stripped where required", "Bolts/parts ultrasonic cleaned where required", "Mating faces cleaned", "Block/crank/head marked with job number", "Parts list sent to office"];
+    return `<div class="workflow-intro">Use this section while stripping, cleaning and recording damage. Nothing should move forward unless it is clean enough to go back on an engine.</div>
+    ${renderChecks("stripChecks", stripItems, j.stripChecks)}
+    ${textarea("Damage findings", j.damageFindings || "", "TIMIK.updateJobField('damageFindings',this.value)", 'placeholder="Cracks, wear, contamination, missing parts, customer damage, suspected cause..."')}
+    ${textarea("Strip down / cleaning notes", j.stripNotes || "", "TIMIK.updateJobField('stripNotes',this.value)", 'placeholder="Wash, blast, ultrasonic, paint strip, anti-rust protection and cleaning notes..."')}
+    ${photoPrompt("Strip down photos", "Add serial, damage, before/after cleaning and inspection photos.")}`;
+  }
+
+  function renderNonWorkshop(j) {
+    return `<div class="workflow-intro">Track anything leaving the workshop, office paperwork, machining and returned components.</div>
+    <div class="grid-2">
+      ${select("Block / liners", j.blockStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('blockStatus',this.value)")}
+      ${select("Crank", j.crankStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('crankStatus',this.value)")}
+      ${select("Cylinder head", j.headStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('headStatus',this.value)")}
+      ${select("Turbo", j.turboStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('turboStatus',this.value)")}
+      ${select("Starter / alternator", j.electricalStatus || "Not Required", ["Not Required", "To Send", "Sent", "Returned", "Issue"], "TIMIK.updateJobField('electricalStatus',this.value)")}
+      ${select("Parts list to office", j.officePartsStatus || "Not Sent", ["Not Sent", "Sent", "Confirmed", "Issue"], "TIMIK.updateJobField('officePartsStatus',this.value)")}
+    </div>
+    ${textarea("External work notes", j.nonWorkshopNotes || "", "TIMIK.updateJobField('nonWorkshopNotes',this.value)", 'placeholder="OCS/machinist notes, reman notes, dates sent/returned, issues and office communication..."')}`;
+  }
+
+  function renderBuild(j) {
+    const buildChecks = ["Workspace cleared", "Block power washed", "Water jacket cleaned", "Block dried and lubed", "Block placed in jig", "New/old parts trolley checked", "Engine assembled to manual", "Oil filled before dyno"];
+    return `<div class="workflow-intro">Record the actual rebuild, measurements, clearances, torque settings and assembly notes.</div>
+    ${renderChecks("buildChecks", buildChecks, j.buildChecks)}
+    ${renderMeasurements(j)}
+    ${textarea("Bearing clearances / tolerance notes", j.clearanceNotes || "", "TIMIK.updateJobField('clearanceNotes',this.value)")}
+    ${textarea("Torque settings / build notes", j.buildNotes || "", "TIMIK.updateJobField('buildNotes',this.value)")}
+    ${photoPrompt("Build photos", "Add assembly photos, timing marks, torque marks and important build evidence.")}`;
+  }
+
+  function renderDyno(j) {
+    const dynoChecks = ["Correct dyno kit fitted", "Cold start completed", "Hot start completed", "Cold oil pressure checked", "Hot oil pressure checked", "Idle oil pressure checked", "Max oil pressure checked", "Leaks checked and addressed", "60% test completed", "Full load test completed", "Dyno run sheet completed"];
+    return `<div class="workflow-intro">Use this section for test running, oil pressures, leak checks and full-load confirmation.</div>
+    ${renderChecks("dynoChecks", dynoChecks, j.dynoChecks)}
+    <div class="grid-2">
+      ${field("Cold idle oil pressure", j.coldIdleOilPressure || "", "TIMIK.updateJobField('coldIdleOilPressure',this.value)")}
+      ${field("Hot idle oil pressure", j.hotIdleOilPressure || "", "TIMIK.updateJobField('hotIdleOilPressure',this.value)")}
+      ${field("Cold max oil pressure", j.coldMaxOilPressure || "", "TIMIK.updateJobField('coldMaxOilPressure',this.value)")}
+      ${field("Hot max oil pressure", j.hotMaxOilPressure || "", "TIMIK.updateJobField('hotMaxOilPressure',this.value)")}
+    </div>
+    ${textarea("Dyno notes", j.dynoNotes || "", "TIMIK.updateJobField('dynoNotes',this.value)", 'placeholder="Leaks, temperatures, load test notes, parts boxed while waiting, further work required..."')}
+    ${photoPrompt("Dyno photos", "Add dyno setup, readings, leak checks and finished run photos.")}`;
+  }
+
+  function renderPackaging(j) {
+    const packChecks = ["Dyno kit removed", "Holes bunged", "Engine power washed and dried", "Non-painted parts taped", "Engine painted", "Tape removed after cure", "Company parts removed", "New red bungs/sensors fitted", "Openings taped", "TIMIK sticker fitted", "Heat tabs fitted", "Shipping pallet prepared", "Engine strapped down", "Final photos taken", "Address label fitted", "Loaded and lorry photo taken"];
+    return `<div class="workflow-intro">Final preparation before the engine leaves TIMIK. Record paint, bungs, heat tabs, palletising and shipping photos.</div>
+    ${renderChecks("packagingChecks", packChecks, j.packagingChecks)}
+    ${textarea("Packaging / shipping notes", j.packagingNotes || "", "TIMIK.updateJobField('packagingNotes',this.value)")}
+    ${photoPrompt("Packaging photos", "Photograph painted engine, pallet, wrapping, labels and loading.")}
+    <div class="photo-grid">${(j.photos || []).map((src, idx) => `<div><img src="${src}" alt="Workshop photo ${idx+1}" /><button class="danger-btn full-width" onclick="TIMIK.removePhoto(${idx},'job')">Remove</button></div>`).join("")}</div>`;
   }
 
   function renderCustomer(j) {
