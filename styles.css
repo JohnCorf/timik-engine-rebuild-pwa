@@ -897,3 +897,65 @@ input[type="date"] {
     width: 100%;
   }
 }
+
+/* V9 TIMIK workshop process timeline */
+.process-timeline {
+  display: grid;
+  gap: 14px;
+}
+.process-stage-card {
+  border: 1px solid var(--border);
+  background: #f8fbff;
+  border-radius: 16px;
+  padding: 12px;
+}
+.process-stage-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  color: var(--navy);
+}
+.process-stage-head > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.process-icon {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #e7f0ff;
+}
+.progress-pill {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 800;
+  color: #0b4fa3;
+  background: #e7f0ff;
+  border: 1px solid #c8dcfb;
+  border-radius: 999px;
+  padding: 6px 9px;
+}
+.check-list.compact .check-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+@media (max-width: 520px) {
+  .process-stage-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .check-list.compact .check-item {
+    grid-template-columns: 1fr;
+  }
+  .check-list.compact .segment {
+    width: 100%;
+  }
+  .check-list.compact .segment button {
+    flex: 1;
+  }
+}

@@ -1,13 +1,21 @@
-// TIMIK V8 customer database improvements - existing customer selection and job autofill
+// TIMIK V9 workshop process integration - built around TIMIK engine workflow
 (() => {
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V8 Customer Database Improvements";
+  const APP_VERSION = "V9 TIMIK Workshop Process";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
-  const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
-  const DEFAULT_STAGES = ["Strip complete", "Clean and inspect", "Machining complete", "Short motor built", "Cylinder head fitted", "Fuel system fitted", "Ancillaries fitted", "Final test/check"];
+  const DEFAULT_FINAL_CHECKS = ["Cold start checked", "Hot start checked", "Cold oil pressure recorded", "Hot oil pressure recorded", "Idle oil pressure recorded", "Max oil pressure recorded", "Leaks checked and addressed", "Full load test completed", "Dyno run sheet completed", "Final photos added", "Customer/warranty notes completed"];
+  const DEFAULT_STAGES = ["Arrival", "Strip Down", "Non Workshop", "Build", "Dyno", "Packaging", "Completed"];
+  const DEFAULT_TIMIK_PROCESS = [
+    { stage: "Arrival", icon: "📥", items: ["Engine unloaded from courier", "Arrival photos taken", "Paperwork created", "Job number assigned", "Engine stored until strip"] },
+    { stage: "Strip Down", icon: "🔧", items: ["Engine power washed before strip bay", "Photos taken of all 4 sides", "Serial number photo taken", "Serial number written on paperwork", "Damages photographed during strip", "Parts washed / ultrasonic cleaned as needed", "Painted parts paint-stripped where needed", "Mating faces cleaned and sanded as needed", "Block / crank / head marked with job number", "Only engine-ready parts placed on trolley"] },
+    { stage: "Non Workshop", icon: "🚚", items: ["Parts list / paperwork sent to office", "Block / crank / head prepared for OCS if required", "Starter / alternator packed for rewind if required", "Turbo packed for reman if required", "External work tracked and chased"] },
+    { stage: "Build", icon: "🏗️", items: ["Workspace cleared", "Block power washed", "Cylinders brushed / water jacket cleaned", "Block dried and lubed", "Block placed in jig", "Old and new parts trolleys brought into build area", "Engine built to manual / specification", "Oil filled before dyno"] },
+    { stage: "Dyno", icon: "🧪", items: ["Correct dyno kit fitted", "Engine run on dyno", "60% test completed", "Cold / hot start checked", "Cold / hot oil pressure checked at idle and max", "Leaks checked and addressed", "Full load test completed using engine spec", "Dyno run sheet completed", "Dyno kit removed", "All holes bunged"] },
+    { stage: "Packaging", icon: "📦", items: ["Engine power washed and dried", "Non-painted parts taped", "Engine painted and left to dry", "Tape removed after 24 hours", "Company parts removed", "Bungs replaced with new red bungs or sensors", "Openings taped", "TIMIK stickers fitted", "Heat tabs fitted to rear and side core plugs", "Engine strapped to shipping pallet with cardboard protection", "Photo taken before wrapping", "Address label fitted when available", "Loaded and photo taken on lorry"] }
+  ];
 
   const $app = document.getElementById("app");
 
@@ -63,6 +71,8 @@
     previousRebuild: "Unknown",
     stripChecks: Object.fromEntries(DEFAULT_CHECKS.map(x => [x, ""])),
     stripNotes: "",
+    workflowChecks: Object.fromEntries(DEFAULT_TIMIK_PROCESS.map(s => [s.stage, Object.fromEntries(s.items.map(x => [x, ""]))])),
+    workflowNotes: Object.fromEntries(DEFAULT_TIMIK_PROCESS.map(s => [s.stage, ""])),
     measurements: [],
     parts: [],
     stages: Object.fromEntries(DEFAULT_STAGES.map(x => [x, "Not Started"])),
@@ -343,6 +353,7 @@
       </div>
       ${section("Customer & Machine", "👥", renderCustomer(j))}
       ${section("Engine Details", "⚙️", renderEngineDetails(j))}
+      ${section("TIMIK Workshop Process", "🛠️", renderTimikProcess(j))}
       ${section("Strip Inspection", "🔍", renderChecks("stripChecks", DEFAULT_CHECKS, j.stripChecks) + textarea("Strip-down notes / damage findings", j.stripNotes, "TIMIK.updateJobField('stripNotes',this.value)"))}
       ${section("Measurements & Tolerances", "📏", renderMeasurements(j))}
       ${section("Parts Used", "🧰", renderParts(j))}
@@ -676,6 +687,25 @@
     render();
   }
 
+
+  function setWorkflowCheck(stage, item, val) {
+    const j = currentJob();
+    if (!j.workflowChecks) j.workflowChecks = {};
+    if (!j.workflowChecks[stage]) j.workflowChecks[stage] = {};
+    j.workflowChecks[stage][item] = val;
+    j.updatedAt = todayISO();
+    persist();
+    render();
+  }
+
+  function updateWorkflowNote(stage, val) {
+    const j = currentJob();
+    if (!j.workflowNotes) j.workflowNotes = {};
+    j.workflowNotes[stage] = val;
+    j.updatedAt = todayISO();
+    persist();
+  }
+
   function setPartDraft(key, val, shouldRender = false) {
     ui.partDraft[key] = val;
     if (shouldRender) render();
@@ -840,6 +870,13 @@
       `Machine: ${j.machineMake} ${j.machineModel}`,
       `Engine: ${j.engineMake} ${j.engineModel}`,
       `Engine Serial: ${j.engineSerial}`,
+      ``,
+      `TIMIK Workshop Process:`,
+      ...DEFAULT_TIMIK_PROCESS.map(group => {
+        const checks = j.workflowChecks?.[group.stage] || {};
+        const done = group.items.filter(item => checks[item] === "Done").length;
+        return `- ${group.stage}: ${done}/${group.items.length} complete${j.workflowNotes?.[group.stage] ? " - " + j.workflowNotes[group.stage] : ""}`;
+      }),
       ``,
       `Parts Used:`,
       ...(j.parts || []).map(p => `- ${p.qty || 1} x ${p.partNo || ""} ${p.description || ""}${p.notes ? " (" + p.notes + ")" : ""}`),
@@ -1017,7 +1054,7 @@
   }
 
   window.TIMIK = {
-    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setCheck, setStage,
+    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setCheck, setStage, setWorkflowCheck, updateWorkflowNote,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
