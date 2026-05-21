@@ -3,9 +3,18 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V13 Responsive Layout Fix";
+  const APP_VERSION = "V14 Photos + Password";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
+  const PHOTO_STAGES = [
+    { key: "arrival", title: "Arrival Photos", help: "Overall engine, courier condition, pallet condition and visible damage." },
+    { key: "serial", title: "Serial Number Photos", help: "Clear serial plate/number evidence before strip down." },
+    { key: "damage", title: "Damage Photos", help: "Damage, wear, contamination, broken parts and anything warranty related." },
+    { key: "strip", title: "Strip Photos", help: "Strip-down condition, removed components and cleaned parts." },
+    { key: "build", title: "Build Photos", help: "Build progress, timing marks, bearing/clearance evidence and assembled stages." },
+    { key: "dyno", title: "Dyno Photos", help: "Dyno setup, readings, leaks found/addressed and final test evidence." },
+    { key: "shipping", title: "Final Shipping Photos", help: "Painted engine, heat tabs, sticker, pallet, strapping, wrapping and loaded engine." }
+  ];
 
   const PROCESS_OPTIONS = ["Pending", "In Progress", "Complete"];
   const SIMPLE_OPTIONS = ["Pending", "Complete"];
@@ -122,7 +131,10 @@
     savedSearch: "",
     savedFilter: "All",
     reportWeekOffset: 0,
-    toast: ""
+    toast: "",
+    unlocked: !state.settings?.passwordEnabled || sessionStorage.getItem("timikUnlocked") === "yes",
+    loginPassword: "",
+    loginError: ""
   };
 
 
@@ -137,7 +149,10 @@
     job.packagingTasks = job.packagingTasks || makeStatusMap(PACKAGING_TASKS, "");
     job.parts = job.parts || [];
     job.measurements = job.measurements || [];
-    job.photos = job.photos || [];
+    job.photos = (job.photos || []).map((p, idx) => {
+      if (typeof p === "string") return { id: uid(), stage: "general", src: p, name: `Photo ${idx + 1}`, addedAt: todayISO() };
+      return { id: p.id || uid(), stage: p.stage || "general", src: p.src || p.data || "", name: p.name || `Photo ${idx + 1}`, addedAt: p.addedAt || todayISO() };
+    }).filter(p => p.src);
     return job;
   }
   state.jobs.forEach(ensureJobShape);
@@ -161,13 +176,13 @@
           customers: Array.isArray(parsed.customers) ? parsed.customers : [],
           engineers: Array.isArray(parsed.engineers) && parsed.engineers.length ? parsed.engineers : DEFAULT_ENGINEERS,
           currentJobId: parsed.currentJobId || null,
-          settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", password: DEFAULT_PASSWORD, passwordEnabled: true, ...(parsed.settings || {}) }
+          settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", password: DEFAULT_PASSWORD, appPassword: DEFAULT_PASSWORD, passwordEnabled: true, ...(parsed.settings || {}) }
         };
       }
     } catch (e) {
       console.warn(e);
     }
-    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", password: DEFAULT_PASSWORD, passwordEnabled: true } };
+    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", password: DEFAULT_PASSWORD, appPassword: DEFAULT_PASSWORD, passwordEnabled: true } };
   }
 
   function persist() {
@@ -312,6 +327,26 @@
     </div>`;
   }
 
+  
+  function isLocked() {
+    return !!state.settings?.passwordEnabled && !ui.unlocked;
+  }
+
+  function renderLogin() {
+    $app.innerHTML = `<div class="login-shell">
+      <div class="login-card">
+        <div class="logo-mark login-logo">TIMIK<small>AGRICULTURE</small></div>
+        <h1>Engine Rebuild Record</h1>
+        <p class="help">Enter the workshop password to open the app.</p>
+        <input class="input login-input" type="password" placeholder="Password" value="${moneySafe(ui.loginPassword)}"
+          oninput="TIMIK.setLoginPassword(this.value)" onkeydown="if(event.key==='Enter') TIMIK.unlockApp()" autofocus />
+        ${ui.loginError ? `<div class="login-error">${moneySafe(ui.loginError)}</div>` : ""}
+        <button class="primary-btn full-width" onclick="TIMIK.unlockApp()">Unlock App</button>
+        <div class="app-footer">Powered by SouthWorx • ${APP_VERSION}</div>
+      </div>
+    </div>`;
+  }
+
   function renderShell(content) {
     const titles = {
       engine: "Engine Job",
@@ -398,11 +433,25 @@
     }).join("")}</div>`;
   }
 
-  function renderPhotoPlaceholder(title, help) {
-    return `<div class="photo-stage-box">
-      <strong>${moneySafe(title)}</strong>
-      <span>${moneySafe(help)}</span>
-      <small>Photo capture/upload will be refined in the next photo workflow pass.</small>
+  function renderStagePhotos(stage, title, help) {
+    const j = currentJob();
+    const photos = (j.photos || []).filter(p => p.stage === stage);
+    return `<div class="photo-stage-box photo-upload-box">
+      <div class="photo-stage-head">
+        <div>
+          <strong>${moneySafe(title)}</strong>
+          <span>${moneySafe(help)}</span>
+        </div>
+        <span class="photo-count">${photos.length} photo${photos.length === 1 ? "" : "s"}</span>
+      </div>
+      <label class="photo-add-btn">
+        + Add Photos
+        <input type="file" accept="image/*" multiple onchange="TIMIK.handleStagePhotos(event,'${stage}')" />
+      </label>
+      ${photos.length ? `<div class="photo-grid stage-photo-grid">${photos.map(p => `<div class="photo-thumb">
+        <img src="${p.src}" alt="${moneySafe(p.name || title)}" />
+        <button class="danger-btn full-width" onclick="TIMIK.removeStagePhoto('${p.id}')">Remove</button>
+      </div>`).join("")}</div>` : `<div class="empty photo-empty">No ${moneySafe(title.toLowerCase())} added yet.</div>`}
     </div>`;
   }
 
@@ -425,8 +474,8 @@
     ${textarea("Arrival notes", j.arrivalNotes || "", "TIMIK.updateJobField('arrivalNotes',this.value)")}
     <h3 class="subsection-title">Arrival actions</h3>
     ${tickList("arrivalTasks", ARRIVAL_TASKS, j.arrivalTasks)}
-    ${renderPhotoPlaceholder("Arrival Photos", "Overall engine, courier condition, pallet condition and visible damage.")}
-    ${renderPhotoPlaceholder("Serial Number Photos", "Clear serial plate/number evidence before strip down.")}`;
+    ${renderStagePhotos("arrival", "Arrival Photos", "Overall engine, courier condition, pallet condition and visible damage.")}
+    ${renderStagePhotos("serial", "Serial Number Photos", "Clear serial plate/number evidence before strip down.")}`;
   }
 
   function renderStripDown(j) {
@@ -438,8 +487,8 @@
       ${textarea("Damage findings", j.damageFindings || "", "TIMIK.updateJobField('damageFindings',this.value)")}
       ${textarea("Cleaning notes", j.cleaningNotes || "", "TIMIK.updateJobField('cleaningNotes',this.value)")}
       ${textarea("Machining required notes", j.machiningRequiredNotes || "", "TIMIK.updateJobField('machiningRequiredNotes',this.value)")}
-      ${renderPhotoPlaceholder("Damage Photos", "Damage, wear, contamination, broken parts and anything warranty related.")}
-      ${renderPhotoPlaceholder("Strip Photos", "Strip-down condition, removed components and cleaned parts.")}`;
+      ${renderStagePhotos("damage", "Damage Photos", "Damage, wear, contamination, broken parts and anything warranty related.")}
+      ${renderStagePhotos("strip", "Strip Photos", "Strip-down condition, removed components and cleaned parts.")}`;
   }
 
   function renderNonWorkshop(j) {
@@ -457,7 +506,7 @@
       ${textarea("Torque settings", j.torqueSettings || "", "TIMIK.updateJobField('torqueSettings',this.value)")}
       ${textarea("Valve clearances", j.valveClearances || "", "TIMIK.updateJobField('valveClearances',this.value)")}
       ${renderMeasurements(j)}
-      ${renderPhotoPlaceholder("Build Photos", "Build progress, timing marks, bearing/clearance evidence and assembled stages.")}`;
+      ${renderStagePhotos("build", "Build Photos", "Build progress, timing marks, bearing/clearance evidence and assembled stages.")}`;
   }
 
   function renderDyno(j) {
@@ -472,14 +521,14 @@
       ${textarea("Full load results", j.fullLoadResults || "", "TIMIK.updateJobField('fullLoadResults',this.value)")}
       ${textarea("Leak check notes", j.leakCheckNotes || "", "TIMIK.updateJobField('leakCheckNotes',this.value)")}
       ${textarea("Dyno notes", j.dynoNotes || "", "TIMIK.updateJobField('dynoNotes',this.value)")}
-      ${renderPhotoPlaceholder("Dyno Photos", "Dyno setup, readings, leaks found/addressed and final test evidence.")}`;
+      ${renderStagePhotos("dyno", "Dyno Photos", "Dyno setup, readings, leaks found/addressed and final test evidence.")}`;
   }
 
   function renderPackaging(j) {
     return `${taskList("packagingTasks", PACKAGING_TASKS, j.packagingTasks, SIMPLE_OPTIONS)}
       ${textarea("Packaging notes", j.packagingNotes || "", "TIMIK.updateJobField('packagingNotes',this.value)")}
       ${textarea("Shipping notes", j.shippingNotes || "", "TIMIK.updateJobField('shippingNotes',this.value)")}
-      ${renderPhotoPlaceholder("Final Shipping Photos", "Painted engine, heat tabs, sticker, pallet, strapping, wrapping and loaded engine.")}`;
+      ${renderStagePhotos("shipping", "Final Shipping Photos", "Painted engine, heat tabs, sticker, pallet, strapping, wrapping and loaded engine.")}`;
   }
 
   function renderEngine() {
@@ -767,6 +816,18 @@
       <input id="importFile" type="file" accept="application/json" style="display:none" onchange="TIMIK.importData(event)" />
       <button class="danger-btn full-width" onclick="TIMIK.clearAllData()">Clear All Data</button>
 
+      <h2 class="mini-title">Password Protection</h2>
+      <div class="settings-card">
+        <div class="card-line"><span>Status</span><strong>${settings.passwordEnabled ? "Enabled" : "Disabled"}</strong></div>
+        <label class="check-item tick-choice">
+          <span>Require password when opening the app</span>
+          <input type="checkbox" ${settings.passwordEnabled ? "checked" : ""} onchange="TIMIK.updatePasswordEnabled(this.checked)" />
+        </label>
+        ${field("App password", settings.appPassword || settings.password || DEFAULT_PASSWORD, "TIMIK.updatePassword(this.value)", "text", 'placeholder="Password"')}
+        <p class="help">Default password is <strong>timik</strong>. This is basic local app protection for workshop use.</p>
+        <button class="secondary-btn full-width" onclick="TIMIK.lockApp()">Lock App Now</button>
+      </div>
+
       <h2 class="mini-title">App Refresh</h2>
       <div class="settings-card">
         <p class="help">If your iPhone/iPad is showing old buttons or an old layout, press this. It clears the PWA cache and reloads the latest files.</p>
@@ -776,7 +837,7 @@
       <h2 class="mini-title">About</h2>
       ${listLink("ℹ️", "About TIMIK Engine Rebuild", "Fast workshop documentation for engine rebuilds")}
       ${listLink("📱", "PWA / Install", "Use Add to Home Screen on iPhone/iPad")}
-      ${listLink("🔐", "Password Protection", "Default password: timik")}
+      ${listLink("🔐", "Password Protection", settings.passwordEnabled ? "Enabled" : "Disabled")}
       <div class="footer-brand">Powered by SouthWorx • ${APP_VERSION}</div>`;
     renderShell(content);
   }
@@ -786,6 +847,7 @@
   }
 
   function render() {
+    if (isLocked()) return renderLogin();
     if (ui.tab === "engine") return renderEngine();
     if (ui.tab === "diary") return renderDiary();
     if (ui.tab === "report") return renderReport();
@@ -905,6 +967,82 @@
     render();
   }
 
+
+  function handleStagePhotos(event, stage) {
+    const files = [...event.target.files].slice(0, 12);
+    const j = currentJob();
+    j.photos = j.photos || [];
+    let remaining = files.length;
+    if (!remaining) return;
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        j.photos.push({ id: uid(), stage, src: reader.result, name: file.name || "Workshop photo", addedAt: todayISO() });
+        remaining--;
+        if (remaining === 0) {
+          j.updatedAt = todayISO();
+          persist();
+          render();
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function removeStagePhoto(photoId) {
+    const j = currentJob();
+    j.photos = (j.photos || []).filter(p => p.id !== photoId);
+    j.updatedAt = todayISO();
+    persist();
+    render();
+  }
+
+  function setLoginPassword(value) {
+    ui.loginPassword = value;
+  }
+
+  function unlockApp() {
+    const expected = state.settings?.appPassword || state.settings?.password || DEFAULT_PASSWORD;
+    if (ui.loginPassword === expected) {
+      ui.unlocked = true;
+      ui.loginPassword = "";
+      ui.loginError = "";
+      sessionStorage.setItem("timikUnlocked", "yes");
+      render();
+      return;
+    }
+    ui.loginError = "Incorrect password";
+    render();
+  }
+
+  function lockApp() {
+    ui.unlocked = false;
+    ui.loginPassword = "";
+    ui.loginError = "";
+    sessionStorage.removeItem("timikUnlocked");
+    render();
+  }
+
+  function updatePasswordEnabled(enabled) {
+    state.settings = state.settings || {};
+    state.settings.passwordEnabled = !!enabled;
+    if (!state.settings.appPassword) state.settings.appPassword = state.settings.password || DEFAULT_PASSWORD;
+    persist();
+    if (!enabled) {
+      ui.unlocked = true;
+      sessionStorage.setItem("timikUnlocked", "yes");
+    }
+    render();
+  }
+
+  function updatePassword(value) {
+    state.settings = state.settings || {};
+    state.settings.appPassword = value || DEFAULT_PASSWORD;
+    state.settings.password = state.settings.appPassword;
+    state.settings.passwordEnabled = true;
+    persist();
+  }
+
   function setDiaryDraft(key, val) {
     ui.diaryDraft[key] = val;
   }
@@ -986,6 +1124,7 @@
       `Customer: ${j.customer}`,
       `Engine: ${j.engineMake} ${j.engineModel}`,
       `Engine Serial: ${j.engineSerial}`,
+      `Photos: ${(j.photos || []).length}`,
       ``,
       `Parts Used:`,
       ...(j.parts || []).map(p => `- ${p.qty || 1} x ${p.partNo || ""} ${p.description || ""}${p.notes ? " (" + p.notes + ")" : ""}`),
@@ -1115,7 +1254,7 @@
   window.TIMIK = {
     setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setBooleanCheck, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
-    handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
+    handlePhotos, removePhoto, handleStagePhotos, removeStagePhoto, setLoginPassword, unlockApp, lockApp, updatePasswordEnabled, updatePassword, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
     setSavedSearch, setSavedFilter, openJob, duplicateJob, deleteJob,
     exportData, importData, updateSetting, refreshApp, clearAllData
