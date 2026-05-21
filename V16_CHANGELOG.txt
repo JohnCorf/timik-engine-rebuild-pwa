@@ -1,0 +1,25 @@
+TIMIK Engine Rebuild Record — V16 Parts Section Logic
+
+Base:
+- Built from V15 Parts + Workflow Control Polish.
+
+Changed:
+- Added defensive parts logic helpers:
+  addTimikPart, updateTimikPart, removeTimikPart and normaliseTimikPart.
+- Standardised part fields:
+  part number, description, quantity, type and notes.
+- Added part type choices:
+  New, Reused, Customer supplied, Sent for repair.
+- Added CSS for a cleaner parts entry card, part type chips and saved part cards.
+- Updated cache/service-worker naming to V16 where possible.
+
+Not changed:
+- Password logic
+- Photo upload logic
+- Daily Diary
+- Weekly Report
+- Saved Jobs
+- Settings
+
+app.js syntax check: PASS
+

@@ -1,7 +1,7 @@
 {
   "name": "TIMIK Agriculture Engine Rebuild Record",
   "short_name": "TIMIK Engine",
-  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V15 Parts + Workflow Control Polish",
+  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V16 Parts Section Logic",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -1,4 +1,4 @@
-const CACHE_NAME = "timik-engine-rebuild-v15";
+const CACHE_NAME = "timik-engine-rebuild-v16";
 const APP_FILES = [
   "./",
   "./index.html",

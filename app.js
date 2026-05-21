@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V15 Parts + Workflow Control Polish";
+  const APP_VERSION = "V16 Parts Section Logic";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -1270,3 +1270,44 @@
 
 // V15 — reusable parts choices for future/add-part UI
 window.TIMIK_PART_TYPES = ["New", "Reused", "Customer supplied", "Sent for repair"];
+
+
+/* V16 — Parts Section Logic helpers
+   These helpers are intentionally defensive so they do not break older saved jobs.
+   They standardise part records ready for the job-card parts UI. */
+window.TIMIK_PART_TYPES = window.TIMIK_PART_TYPES || ["New", "Reused", "Customer supplied", "Sent for repair"];
+
+window.normaliseTimikPart = function(part) {
+  return {
+    id: part.id || ("part_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7)),
+    partNumber: part.partNumber || part.number || "",
+    description: part.description || part.name || "",
+    quantity: part.quantity || part.qty || "1",
+    type: part.type || "New",
+    notes: part.notes || ""
+  };
+};
+
+window.addTimikPart = function(job, part) {
+  if (!job) return job;
+  if (!Array.isArray(job.parts)) job.parts = [];
+  job.parts.unshift(window.normaliseTimikPart(part || {}));
+  return job;
+};
+
+window.updateTimikPart = function(job, partId, patch) {
+  if (!job || !Array.isArray(job.parts)) return job;
+  job.parts = job.parts.map(function(part) {
+    const normalised = window.normaliseTimikPart(part);
+    return normalised.id === partId ? Object.assign({}, normalised, patch || {}) : normalised;
+  });
+  return job;
+};
+
+window.removeTimikPart = function(job, partId) {
+  if (!job || !Array.isArray(job.parts)) return job;
+  job.parts = job.parts.filter(function(part) {
+    return window.normaliseTimikPart(part).id !== partId;
+  });
+  return job;
+};
