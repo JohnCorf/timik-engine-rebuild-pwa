@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V19.1 Job Timer Fixed";
+  const APP_VERSION = "V20 Timer Integration";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -650,6 +650,10 @@ function toggleSection(name) {
         ${recent.length ? recent.map(e => `<div class="timer-entry">
           <div class="timer-entry-head"><strong>${Number(e.hours || 0).toFixed(2)} hrs</strong><span>${fmtDate(e.date)}</span></div>
           <div class="timer-entry-note">${moneySafe(e.note || "No note added")}</div>
+          <div class="timer-entry-actions no-print">
+            <button class="ghost-btn small-btn" onclick="TIMIK.editTimeEntry('${e.id}')">Edit</button>
+            <button class="ghost-btn small-btn danger-btn" onclick="TIMIK.deleteTimeEntry('${e.id}')">Delete</button>
+          </div>
         </div>`).join("") : `<div class="timer-empty">No recorded timer entries yet.</div>`}
       </div>
     </section>`;
@@ -702,7 +706,7 @@ function toggleSection(name) {
     const note = document.getElementById("timerNote")?.value?.trim() || "";
 
     job.timeEntries = job.timeEntries || [];
-    job.timeEntries.push({
+    const timeEntry = {
       id: uid(),
       date: todayISO(),
       engineer: timer.engineer || job.engineer || state.settings?.defaultEngineer || "",
@@ -710,11 +714,79 @@ function toggleSection(name) {
       endTime,
       hours,
       note
+    };
+
+    job.timeEntries.push(timeEntry);
+
+    // V20: also add timer time into Daily Diary so weekly reports include it naturally.
+    state.diary = state.diary || [];
+    state.diary.push({
+      id: uid(),
+      date: timeEntry.date,
+      engineer: timeEntry.engineer,
+      jobId: job.id,
+      hours: String(timeEntry.hours),
+      workDone: note || "Timer entry",
+      partsFitted: "",
+      issues: "",
+      photos: [],
+      source: "timer",
+      sourceTimerEntryId: timeEntry.id
     });
+
     job.updatedAt = todayISO();
     setActiveTimer(null);
     persist();
-    showToast(`${hours.toFixed(2)} hours saved`);
+    showToast(`${hours.toFixed(2)} hours saved and added to diary`);
+    render();
+  }
+
+
+  function deleteTimeEntry(entryId) {
+    const job = currentJob();
+    if (!job || !Array.isArray(job.timeEntries)) return;
+    if (!confirm("Delete this timer entry? This will also remove the matching diary entry.")) return;
+
+    job.timeEntries = job.timeEntries.filter(e => e.id !== entryId);
+    state.diary = (state.diary || []).filter(e => e.sourceTimerEntryId !== entryId);
+    job.updatedAt = todayISO();
+    persist();
+    showToast("Timer entry deleted");
+    render();
+  }
+
+  function editTimeEntry(entryId) {
+    const job = currentJob();
+    if (!job || !Array.isArray(job.timeEntries)) return;
+    const entry = job.timeEntries.find(e => e.id === entryId);
+    if (!entry) return;
+
+    const newHoursRaw = prompt("Edit hours", String(entry.hours || ""));
+    if (newHoursRaw === null) return;
+    const newHours = Number(newHoursRaw);
+    if (!Number.isFinite(newHours) || newHours < 0) {
+      showToast("Please enter a valid number of hours");
+      return;
+    }
+
+    const newNote = prompt("Edit timer note", entry.note || "");
+    if (newNote === null) return;
+
+    entry.hours = Math.round(newHours * 100) / 100;
+    entry.note = newNote;
+
+    const diaryEntry = (state.diary || []).find(e => e.sourceTimerEntryId === entryId);
+    if (diaryEntry) {
+      diaryEntry.hours = String(entry.hours);
+      diaryEntry.workDone = newNote || "Timer entry";
+      diaryEntry.engineer = entry.engineer || diaryEntry.engineer;
+      diaryEntry.date = entry.date || diaryEntry.date;
+    }
+
+    job.updatedAt = todayISO();
+    persist();
+    showToast("Timer entry updated");
+    render();
   }
 
 
@@ -885,7 +957,7 @@ function toggleSection(name) {
   function diaryCard(e) {
     const j = state.jobs.find(x => x.id === e.jobId);
     return `<div class="diary-card">
-      <div class="card-line"><h4>${moneySafe(j?.jobNo || "No job")} ${moneySafe(j ? jobTitle(j) : "")}</h4><span class="status-badge status-not-started">Hours: ${moneySafe(e.hours || "0")}</span></div>
+      <div class="card-line"><h4>${moneySafe(j?.jobNo || "No job")} ${moneySafe(j ? jobTitle(j) : "")}</h4><span class="status-badge status-not-started">Hours: ${moneySafe(e.hours || "0")}${e.source === "timer" ? " • Timer" : ""}</span></div>
       <div class="card-line"><span>Date</span><strong>${fmtDate(e.date)}</strong></div>
       <div class="card-line"><span>Engineer</span><strong>${moneySafe(e.engineer || "-")}</strong></div>
       <p><strong>Work Done:</strong><br>${moneySafe(e.workDone || "-")}</p>
@@ -1265,7 +1337,29 @@ function toggleSection(name) {
 
   function getWeekEntries() {
     const r = getWeekRange(ui.reportWeekOffset);
-    return state.diary.filter(e => e.date >= r.start && e.date <= r.end).sort((a,b) => (a.date || "").localeCompare(b.date || ""));
+    const diaryEntries = (state.diary || []).filter(e => e.date >= r.start && e.date <= r.end);
+
+    // V20: include timer entries saved before timer-to-diary integration.
+    const diaryTimerIds = new Set(diaryEntries.map(e => e.sourceTimerEntryId).filter(Boolean));
+    const timerEntries = (state.jobs || []).flatMap(job => {
+      return (job.timeEntries || [])
+        .filter(t => t.date >= r.start && t.date <= r.end && !diaryTimerIds.has(t.id))
+        .map(t => ({
+          id: `timer-${t.id}`,
+          date: t.date,
+          engineer: t.engineer || job.engineer || "Unassigned",
+          jobId: job.id,
+          hours: String(t.hours || 0),
+          workDone: t.note || "Timer entry",
+          partsFitted: "",
+          issues: "",
+          source: "timer",
+          sourceTimerEntryId: t.id,
+          timerOnly: true
+        }));
+    });
+
+    return [...diaryEntries, ...timerEntries].sort((a,b) => (a.date || "").localeCompare(b.date || ""));
   }
 
   function getWeekNumber(date) {
@@ -1442,7 +1536,7 @@ function toggleSection(name) {
   }
 
   window.TIMIK = {
-    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, startJobTimer, stopJobTimer, setBooleanCheck, setCheck, setStage,
+    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, startJobTimer, stopJobTimer, editTimeEntry, deleteTimeEntry, setBooleanCheck, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, handleStagePhotos, removeStagePhoto, setLoginPassword, unlockApp, lockApp, updatePasswordEnabled, updatePassword, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,

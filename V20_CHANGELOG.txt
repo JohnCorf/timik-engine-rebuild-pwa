@@ -1,0 +1,25 @@
+TIMIK Engine Rebuild Record — V20 Timer Integration
+
+Base:
+- Built from V19.1 Job Timer Fixed.
+
+Added:
+- Stopping a timer now also creates a Daily Diary entry automatically.
+- Weekly Report now includes timer hours.
+- Older timer entries are included in Weekly Report even if they were created before V20.
+- Timer entries can now be edited from the Job Timer panel.
+- Timer entries can now be deleted from the Job Timer panel.
+- Deleting a timer entry also removes the matching Daily Diary timer entry.
+- Diary cards now show when an entry came from the timer.
+
+Not changed:
+- Password protection
+- Photo uploads
+- Existing job workflow
+- Parts section
+- Saved Jobs
+- Settings
+- Customer database
+
+app.js syntax check: PASS
+

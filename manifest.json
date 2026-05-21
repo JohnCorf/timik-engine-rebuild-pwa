@@ -1,7 +1,7 @@
 {
   "name": "TIMIK Agriculture Engine Rebuild Record",
   "short_name": "TIMIK Engine",
-  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V19.1 Job Timer Fixed",
+  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V20 Timer Integration",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

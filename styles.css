@@ -2062,3 +2062,30 @@ details[open] > summary::after {
   .timer-display { font-size: 30px; }
   .timer-buttons { grid-template-columns: 1fr; }
 }
+
+
+/* ================================
+   V20 — Timer Integration
+   ================================ */
+
+.timer-entry-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.small-btn {
+  min-height: 34px !important;
+  padding: 6px 10px !important;
+  font-size: 13px !important;
+}
+
+.danger-btn {
+  border-color: #d64545 !important;
+  color: #b42323 !important;
+}
+
+.danger-btn:hover {
+  background: #fff1f1 !important;
+}
