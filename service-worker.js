@@ -1,4 +1,4 @@
-const CACHE_NAME = "timik-v12-workflow-choices";
+const CACHE_NAME = "timik-v13-responsive-layout-fix";
 const APP_FILES = [
   "./",
   "./index.html",

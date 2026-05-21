@@ -945,3 +945,66 @@ input[type="date"] {
     flex:1 1 calc(50% - 6px);
   }
 }
+
+
+/* V13 responsive workflow layout fix
+   Keeps status controls usable on desktop, tablet and phone. */
+.check-list{
+  gap:12px;
+}
+.check-item.workflow-choice{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+  align-items:stretch;
+  width:100%;
+  box-sizing:border-box;
+}
+.check-item.workflow-choice > span{
+  display:block;
+  font-size:14px;
+  line-height:1.35;
+  color:var(--navy);
+}
+.workflow-choice .segment{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(118px, 1fr));
+  gap:6px;
+  width:100%;
+  box-sizing:border-box;
+}
+.workflow-choice .segment button{
+  width:100%;
+  min-width:0;
+  white-space:normal;
+  text-align:center;
+  line-height:1.15;
+}
+.tick-choice{
+  display:grid;
+  grid-template-columns:1fr auto !important;
+  width:100%;
+  box-sizing:border-box;
+}
+@media (min-width:760px){
+  .check-item.workflow-choice{
+    padding:14px;
+  }
+  .workflow-choice .segment{
+    grid-template-columns:repeat(auto-fit, minmax(135px, 1fr));
+  }
+}
+@media (max-width:520px){
+  .workflow-choice .segment{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+  .workflow-choice .segment button{
+    padding:10px 8px;
+    font-size:13px;
+  }
+}
+@media (max-width:360px){
+  .workflow-choice .segment{
+    grid-template-columns:1fr;
+  }
+}
