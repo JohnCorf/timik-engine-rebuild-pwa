@@ -1,0 +1,17 @@
+TIMIK Engine Rebuild Record — V19.1 Job Timer Fixed
+
+This fixes the V19 timer not appearing.
+
+Cause:
+- The previous timer was injected outside the app's main code closure.
+- It could not access the real currentJob/state functions, so it did not know which job to attach to.
+
+Fixed:
+- Job Timer is now rendered directly inside the real Engine Job page.
+- Added Start Timer / Stop & Save functions inside the actual app code.
+- Timer entries save to the current job as job.timeEntries.
+- Total job hours display on the timer panel.
+- Recent timer entries display on the job card.
+- Cache updated to V19.1.
+
+app.js syntax check: PASS
