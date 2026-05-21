@@ -1,7 +1,7 @@
 {
   "name": "TIMIK Agriculture Engine Rebuild Record",
   "short_name": "TIMIK Engine",
-  "description": "Mobile-first engine rebuild records, workshop diary and weekly reporting for agricultural workshops.",
+  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V15 Parts + Workflow Control Polish",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

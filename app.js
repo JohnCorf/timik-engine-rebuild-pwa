@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V14 Photos + Password";
+  const APP_VERSION = "V15 Parts + Workflow Control Polish";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -1266,3 +1266,7 @@
 
   render();
 })();
+
+
+// V15 — reusable parts choices for future/add-part UI
+window.TIMIK_PART_TYPES = ["New", "Reused", "Customer supplied", "Sent for repair"];

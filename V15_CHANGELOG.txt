@@ -1,0 +1,23 @@
+TIMIK Engine Rebuild Record — V15 Parts + Workflow Control Polish
+
+Base:
+- Built from the latest V14 Photos + Password package.
+
+Changed:
+- Added clearer outlined styling around engineer choice/control groups.
+- Improved spacing between labels and choice buttons.
+- Made choice buttons wrap cleanly on phone/tablet/desktop.
+- Added CSS structure for cleaner parts cards and add-part panels.
+- Added reusable parts type options for future refinement:
+  New, Reused, Customer supplied, Sent for repair.
+- Updated cache/service-worker naming to V15 where possible.
+
+Not changed:
+- Daily Diary logic
+- Weekly Report logic
+- Saved Jobs logic
+- Settings/password logic
+- Existing photo upload logic
+
+Check:
+- app.js syntax check: PASS
