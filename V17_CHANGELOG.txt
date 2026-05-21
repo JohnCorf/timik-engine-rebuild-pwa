@@ -1,0 +1,29 @@
+TIMIK Engine Rebuild Record — V17 Workflow UX Refinement
+
+Base:
+- Built from the latest working ZIP supplied by the user: timik-engine-rebuild-pwa(3).zip
+
+Changed:
+1. Workflow card open/close behaviour
+- New/unknown jobs start with workflow sections collapsed.
+- Expanded/collapsed section state is remembered per job where possible.
+- State is saved in localStorage without changing the existing job data shape.
+
+2. Engineer choice buttons
+- Improved the visual design of Pending / In Progress / Complete etc.
+- Buttons now appear as separate selectable controls rather than one large grey bar.
+- Added clearer borders, spacing, hover state and active state.
+- Improved phone/tablet/desktop layout.
+
+Not intentionally changed:
+- Password protection
+- Photo uploads
+- Saved Jobs
+- Daily Diary
+- Weekly Report
+- Settings
+- Customer database
+- Existing job data
+
+app.js syntax check: PASS
+

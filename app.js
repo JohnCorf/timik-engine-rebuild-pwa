@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V16 Parts Section Logic";
+  const APP_VERSION = "V17 Workflow UX Refinement";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -1311,3 +1311,139 @@ window.removeTimikPart = function(job, partId) {
   });
   return job;
 };
+
+
+
+/* =====================================================
+   V17 — Workflow card state persistence
+   - New/unknown jobs start with all workflow sections collapsed.
+   - User open/closed sections are remembered per job where possible.
+   - Works with existing <details> cards and common collapsible button patterns.
+   ===================================================== */
+(function () {
+  const V17_WORKFLOW_STORAGE_PREFIX = "timik.workflow.openSections.";
+
+  function getActiveJobKey() {
+    const candidates = [
+      window.currentJob?.id,
+      window.state?.currentJobId,
+      window.state?.activeJobId,
+      window.appState?.currentJobId,
+      document.querySelector("[data-current-job-id]")?.getAttribute("data-current-job-id"),
+      document.querySelector("[data-job-id]")?.getAttribute("data-job-id")
+    ].filter(Boolean);
+    return candidates[0] || "new-job";
+  }
+
+  function isWorkflowCard(el) {
+    if (!el) return false;
+    const text = (el.querySelector("summary, .card-title, .workflow-title, h2, h3, h4")?.textContent || el.textContent || "").trim().toLowerCase();
+    const names = ["arrival", "strip down", "non workshop", "build", "dyno", "packaging", "parts", "sign off", "sign-off"];
+    return names.some(n => text.includes(n)) || el.classList.contains("workflow-card") || el.classList.contains("job-section");
+  }
+
+  function getSectionName(el, index) {
+    const raw = (el.querySelector("summary, .card-title, .workflow-title, h2, h3, h4")?.textContent || "").trim();
+    return raw || ("section-" + index);
+  }
+
+  function getWorkflowCards() {
+    const candidates = Array.from(document.querySelectorAll("details, .workflow-card, .job-section, .accordion-card, .collapsible-card"));
+    return candidates.filter(isWorkflowCard);
+  }
+
+  function readOpenSet(jobKey) {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(V17_WORKFLOW_STORAGE_PREFIX + jobKey) || "[]"));
+    } catch {
+      return new Set();
+    }
+  }
+
+  function writeOpenSet(jobKey, openSet) {
+    try {
+      localStorage.setItem(V17_WORKFLOW_STORAGE_PREFIX + jobKey, JSON.stringify(Array.from(openSet)));
+    } catch {}
+  }
+
+  function cardIsOpen(card) {
+    if (card.tagName && card.tagName.toLowerCase() === "details") return card.open;
+    if (card.classList.contains("is-open") || card.classList.contains("open") || card.classList.contains("expanded")) return true;
+    const body = card.querySelector(".workflow-body, .card-body, .accordion-body, .collapsible-body, .section-body");
+    if (body) return body.style.display !== "none" && !body.hidden;
+    return false;
+  }
+
+  function setCardOpen(card, shouldOpen) {
+    if (card.tagName && card.tagName.toLowerCase() === "details") {
+      card.open = shouldOpen;
+      return;
+    }
+    card.classList.toggle("is-open", shouldOpen);
+    card.classList.toggle("collapsed", !shouldOpen);
+    const body = card.querySelector(".workflow-body, .card-body, .accordion-body, .collapsible-body, .section-body");
+    if (body) {
+      body.hidden = !shouldOpen;
+      body.style.display = shouldOpen ? "" : "none";
+    }
+  }
+
+  function applyWorkflowState() {
+    const jobKey = getActiveJobKey();
+    const cards = getWorkflowCards();
+    const openSet = readOpenSet(jobKey);
+
+    cards.forEach((card, index) => {
+      const name = getSectionName(card, index);
+      card.dataset.v17SectionName = name;
+
+      // New jobs/no stored state: force all sections closed.
+      // Existing stored state: restore only stored open sections.
+      setCardOpen(card, openSet.has(name));
+    });
+  }
+
+  function saveWorkflowState() {
+    const jobKey = getActiveJobKey();
+    const cards = getWorkflowCards();
+    const openSet = new Set();
+
+    cards.forEach((card, index) => {
+      const name = card.dataset.v17SectionName || getSectionName(card, index);
+      if (cardIsOpen(card)) openSet.add(name);
+    });
+
+    writeOpenSet(jobKey, openSet);
+  }
+
+  document.addEventListener("toggle", function (event) {
+    if (event.target && isWorkflowCard(event.target)) {
+      setTimeout(saveWorkflowState, 0);
+    }
+  }, true);
+
+  document.addEventListener("click", function (event) {
+    const clickedHeader = event.target.closest("summary, .workflow-header, .card-header, .accordion-header, .collapsible-header");
+    if (clickedHeader) {
+      setTimeout(saveWorkflowState, 80);
+    }
+  }, true);
+
+  const observer = new MutationObserver(function () {
+    clearTimeout(window.__timikV17ApplyTimer);
+    window.__timikV17ApplyTimer = setTimeout(function () {
+      applyWorkflowState();
+      // Style helper classes for buttons after renders.
+      document.querySelectorAll(".choice-buttons, .status-buttons, .workflow-buttons, .segmented-buttons, .button-options, .option-buttons, .radio-group, .pill-row")
+        .forEach(el => el.classList.add("v17-segmented"));
+    }, 120);
+  });
+
+  window.addEventListener("load", function () {
+    applyWorkflowState();
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+
+  window.TIMIK_V17_applyWorkflowState = applyWorkflowState;
+  window.TIMIK_V17_saveWorkflowState = saveWorkflowState;
+})();

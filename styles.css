@@ -1459,3 +1459,217 @@ input[type="date"] {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* =====================================================
+   V17 — Workflow UX Refinement
+   Clear segmented buttons + stable collapsed workflow cards
+   ===================================================== */
+
+.workflow-card,
+.job-section,
+.accordion-card,
+.collapsible-card,
+details {
+  overflow: hidden;
+}
+
+/* Distinct selectable buttons instead of one grey slab */
+.v17-segmented,
+.choice-buttons,
+.status-buttons,
+.workflow-buttons,
+.segmented-buttons,
+.button-options,
+.option-buttons,
+.radio-group,
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.v17-segmented button,
+.choice-buttons button,
+.status-buttons button,
+.workflow-buttons button,
+.segmented-buttons button,
+.button-options button,
+.option-buttons button,
+.radio-group button,
+.pill-row button,
+.choice-btn,
+.status-btn,
+.option-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #ffffff !important;
+  color: #17324d !important;
+  border: 1.5px solid #b7c9df !important;
+  border-radius: 12px !important;
+  padding: 11px 14px !important;
+  min-height: 44px;
+  line-height: 1.15;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(15, 45, 75, 0.06);
+  flex: 1 1 130px;
+  max-width: 100%;
+}
+
+.v17-segmented button:hover,
+.choice-buttons button:hover,
+.status-buttons button:hover,
+.workflow-buttons button:hover,
+.segmented-buttons button:hover,
+.button-options button:hover,
+.option-buttons button:hover,
+.radio-group button:hover,
+.pill-row button:hover,
+.choice-btn:hover,
+.status-btn:hover,
+.option-btn:hover {
+  border-color: #0b5fa5 !important;
+  background: #eef6ff !important;
+}
+
+.v17-segmented button.active,
+.v17-segmented button.selected,
+.choice-buttons button.active,
+.choice-buttons button.selected,
+.status-buttons button.active,
+.status-buttons button.selected,
+.workflow-buttons button.active,
+.workflow-buttons button.selected,
+.segmented-buttons button.active,
+.segmented-buttons button.selected,
+.button-options button.active,
+.button-options button.selected,
+.option-buttons button.active,
+.option-buttons button.selected,
+.radio-group button.active,
+.radio-group button.selected,
+.pill-row button.active,
+.pill-row button.selected,
+.choice-btn.active,
+.choice-btn.selected,
+.status-btn.active,
+.status-btn.selected,
+.option-btn.active,
+.option-btn.selected,
+.selected {
+  background: #0b5fa5 !important;
+  border-color: #0b5fa5 !important;
+  color: #ffffff !important;
+  box-shadow: 0 6px 14px rgba(11, 95, 165, 0.20);
+}
+
+/* The container for each engineer choice should read as a separate decision */
+.choice-group,
+.status-group,
+.workflow-choice-group,
+.engineer-choice-group,
+.control-choice-group,
+.option-group,
+.check-row,
+.status-row {
+  border: 1px solid #d3e0ee;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin: 12px 0 16px;
+  box-shadow: 0 1px 3px rgba(15, 45, 75, 0.04);
+}
+
+.choice-group > label:first-child,
+.status-group > label:first-child,
+.workflow-choice-group > label:first-child,
+.engineer-choice-group > label:first-child,
+.control-choice-group > label:first-child,
+.option-group > label:first-child,
+.check-row > label:first-child,
+.status-row > label:first-child {
+  display: block;
+  margin-bottom: 10px;
+  color: #001f3f;
+  font-weight: 900;
+}
+
+/* Native details cards should feel intentional */
+details > summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+details > summary::-webkit-details-marker {
+  display: none;
+}
+
+details > summary::after {
+  content: "⌄";
+  float: right;
+  color: #35516e;
+  font-weight: 900;
+  transition: transform 0.16s ease;
+}
+
+details[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+/* Mobile button layout */
+@media (max-width: 700px) {
+  .v17-segmented,
+  .choice-buttons,
+  .status-buttons,
+  .workflow-buttons,
+  .segmented-buttons,
+  .button-options,
+  .option-buttons,
+  .radio-group,
+  .pill-row {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .v17-segmented button,
+  .choice-buttons button,
+  .status-buttons button,
+  .workflow-buttons button,
+  .segmented-buttons button,
+  .button-options button,
+  .option-buttons button,
+  .radio-group button,
+  .pill-row button,
+  .choice-btn,
+  .status-btn,
+  .option-btn {
+    width: 100%;
+    flex: none;
+  }
+}
+
+@media (min-width: 701px) {
+  .v17-segmented button,
+  .choice-buttons button,
+  .status-buttons button,
+  .workflow-buttons button,
+  .segmented-buttons button,
+  .button-options button,
+  .option-buttons button,
+  .radio-group button,
+  .pill-row button,
+  .choice-btn,
+  .status-btn,
+  .option-btn {
+    flex: 1 1 160px;
+  }
+}
