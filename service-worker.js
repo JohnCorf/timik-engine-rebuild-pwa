@@ -1,12 +1,10 @@
-const CACHE_NAME = "timik-engine-rebuild-v11-stability-password-20260521";
+const CACHE_NAME = "timik-v12-workflow-choices";
 const APP_FILES = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
-  "./manifest.json",
-  "./icon-192.png",
-  "./icon-512.png"
+  "./manifest.json"
 ];
 
 self.addEventListener("install", event => {
@@ -35,3 +33,11 @@ self.addEventListener("fetch", event => {
       .catch(() => caches.match(event.request).then(cached => cached || caches.match("./index.html")))
   );
 });
+
+
+// V10 wording update placeholder
+window.TIMIK_STATUS_OPTIONS = {
+  process: ["Pending", "In Progress", "Complete"],
+  external: ["Not Sent", "Sent", "Returned"],
+  inspection: ["Pass", "Fail", "Monitor"]
+};

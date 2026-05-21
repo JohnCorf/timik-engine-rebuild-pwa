@@ -2,12 +2,24 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V11 Stability + Password Restore";
+  const STORAGE_KEY = "timik_engine_rebuild_record_v12";
+  const APP_VERSION = "V12 TIMIK Workflow Choices";
+  const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
-  const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
-  const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
-  const DEFAULT_STAGES = ["Strip complete", "Clean and inspect", "Machining complete", "Short motor built", "Cylinder head fitted", "Fuel system fitted", "Ancillaries fitted", "Final test/check"];
+
+  const PROCESS_OPTIONS = ["Pending", "In Progress", "Complete"];
+  const SIMPLE_OPTIONS = ["Pending", "Complete"];
+  const INSPECTION_OPTIONS = ["Pass", "Fail", "Monitor"];
+  const EXTERNAL_OPTIONS = ["Not Sent", "Sent", "Returned", "Not Required"];
+  const JOB_STATUS_OPTIONS = ["In Progress", "Awaiting Parts", "Awaiting Machining", "Ready For Dyno", "Ready For Shipping", "Complete", "On Hold"];
+
+  const ARRIVAL_TASKS = ["Engine unloaded", "Arrival photos taken", "Serial number photographed", "Job number assigned", "Engine logged", "Engine stored safely"];
+  const STRIP_PROCESS_TASKS = ["Engine power washed", "Engine stripped", "All sides photographed", "Damage photographed", "Parts washed", "Paint stripped where required", "Parts tagged", "Parts list sent to office"];
+  const STRIP_INSPECTIONS = ["Oil condition", "Metal contamination", "Bore condition", "Crank journal condition", "Cylinder head condition", "Block condition", "Turbo condition", "Injector condition", "Cooling system condition"];
+  const EXTERNAL_ITEMS = ["Block machining", "Crank grinding / measuring", "Cylinder head reman", "Turbo reman", "Starter rewind", "Alternator rewind"];
+  const BUILD_TASKS = ["Workspace cleared", "Block cleaned", "Water jacket cleaned", "Block dried and lubed", "Parts prepared", "Short motor assembled", "Cylinder head fitted", "Fuel system fitted", "Ancillaries fitted", "Oil filled before dyno"];
+  const DYNO_INSPECTIONS = ["Cold start", "Hot start", "Cold oil pressure", "Hot oil pressure", "Leak check", "Full load test", "Dyno run sheet completed"];
+  const PACKAGING_TASKS = ["Dyno kit removed", "Holes bunged", "Engine washed and dried", "Non-painted parts taped", "Engine painted", "Heat tabs fitted", "TIMIK sticker fitted", "Openings taped", "Engine palletised", "Engine strapped", "Final photos taken", "Shipping label attached"];
 
   const $app = document.getElementById("app");
 
@@ -20,33 +32,8 @@
   };
   const moneySafe = (v) => String(v ?? "").replace(/[<>&]/g, s => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[s]));
   const num = (v) => Number.parseFloat(v || 0) || 0;
-  const DEFAULT_PASSWORD = "timik";
-  const AUTH_KEY = "timik_engine_unlocked_v11";
 
-  function defaultSettings() {
-    return {
-      workshopName: "TIMIK Agriculture",
-      defaultEngineer: "",
-      defaultEmail: "",
-      passwordEnabled: true,
-      appPassword: DEFAULT_PASSWORD,
-      passwordMigratedV11: true
-    };
-  }
-
-  function normaliseSettings(existing = {}) {
-    const merged = { ...defaultSettings(), ...existing };
-    // Older TIMIK builds had passwordEnabled set to false by default and no stored password.
-    // For V11, restore protection automatically unless the user later turns it off.
-    if (!existing.appPassword && !existing.passwordMigratedV11) {
-      merged.passwordEnabled = true;
-      merged.appPassword = DEFAULT_PASSWORD;
-      merged.passwordMigratedV11 = true;
-    }
-    if (!merged.appPassword) merged.appPassword = DEFAULT_PASSWORD;
-    return merged;
-  }
-
+  const makeStatusMap = (items, initial = "") => Object.fromEntries(items.map(x => [x, initial]));
 
   const blankJob = () => ({
     id: uid(),
@@ -55,31 +42,60 @@
     createdAt: todayISO(),
     updatedAt: todayISO(),
     completedAt: "",
+
     customer: "",
     engineer: (state?.settings?.defaultEngineer || ""),
     contact: "",
     phone: "",
     email: "",
-    machineMake: "",
-    machineModel: "",
-    machineSerial: "",
-    machineHours: "",
+
     engineMake: "",
     engineModel: "",
     engineSerial: "",
     buildRef: "",
     previousRebuild: "Unknown",
-    stripChecks: Object.fromEntries(DEFAULT_CHECKS.map(x => [x, ""])),
+
+    deliveryNotes: "",
+    arrivalNotes: "",
+    arrivalTasks: makeStatusMap(ARRIVAL_TASKS, false),
+
+    stripProcess: makeStatusMap(STRIP_PROCESS_TASKS, ""),
+    stripChecks: makeStatusMap(STRIP_INSPECTIONS, ""),
     stripNotes: "",
+    damageFindings: "",
+    cleaningNotes: "",
+    machiningRequiredNotes: "",
+
+    externalWork: makeStatusMap(EXTERNAL_ITEMS, ""),
+    externalNotes: "",
+    officeNotes: "",
+
+    buildTasks: makeStatusMap(BUILD_TASKS, ""),
+    buildNotes: "",
     measurements: [],
+    bearingClearances: "",
+    torqueSettings: "",
+    valveClearances: "",
+
+    dynoChecks: makeStatusMap(DYNO_INSPECTIONS, ""),
+    coldOilPressure: "",
+    hotOilPressure: "",
+    maxRpm: "",
+    loadPercent: "",
+    fullLoadResults: "",
+    leakCheckNotes: "",
+    dynoNotes: "",
+
+    packagingTasks: makeStatusMap(PACKAGING_TASKS, ""),
+    packagingNotes: "",
+    shippingNotes: "",
+
     parts: [],
-    stages: Object.fromEntries(DEFAULT_STAGES.map(x => [x, "Not Started"])),
-    finalChecks: Object.fromEntries(DEFAULT_FINAL_CHECKS.map(x => [x, ""])),
-    finalNotes: "",
     signOffEngineer: (state?.settings?.defaultEngineer || ""),
     signOffDate: "",
     warrantyNotes: "",
     customerNotes: "",
+    finalNotes: "",
     photos: []
   });
 
@@ -98,7 +114,7 @@
   let state = loadState();
   let ui = {
     tab: "engine",
-    openSections: ["Customer & Machine", "Engine Details", "Parts Used"],
+    openSections: ["Arrival", "Strip Down", "Parts"],
     currentJobId: state.currentJobId || null,
     diaryDraft: blankDiary(),
     partDraft: { partNo: "", description: "", qty: "1", addNotes: false, notes: "" },
@@ -106,11 +122,25 @@
     savedSearch: "",
     savedFilter: "All",
     reportWeekOffset: 0,
-    toast: "",
-    unlocked: sessionStorage.getItem(AUTH_KEY) === "yes",
-    loginPassword: "",
-    loginError: ""
+    toast: ""
   };
+
+
+  function ensureJobShape(job) {
+    job.status = job.status === "Completed" ? "Complete" : (job.status || "In Progress");
+    job.arrivalTasks = job.arrivalTasks || makeStatusMap(ARRIVAL_TASKS, false);
+    job.stripProcess = job.stripProcess || makeStatusMap(STRIP_PROCESS_TASKS, "");
+    job.stripChecks = job.stripChecks || makeStatusMap(STRIP_INSPECTIONS, "");
+    job.externalWork = job.externalWork || makeStatusMap(EXTERNAL_ITEMS, "");
+    job.buildTasks = job.buildTasks || makeStatusMap(BUILD_TASKS, "");
+    job.dynoChecks = job.dynoChecks || makeStatusMap(DYNO_INSPECTIONS, "");
+    job.packagingTasks = job.packagingTasks || makeStatusMap(PACKAGING_TASKS, "");
+    job.parts = job.parts || [];
+    job.measurements = job.measurements || [];
+    job.photos = job.photos || [];
+    return job;
+  }
+  state.jobs.forEach(ensureJobShape);
 
   if (!ui.currentJobId || !state.jobs.find(j => j.id === ui.currentJobId)) {
     const first = state.jobs[0] || blankJob();
@@ -131,13 +161,13 @@
           customers: Array.isArray(parsed.customers) ? parsed.customers : [],
           engineers: Array.isArray(parsed.engineers) && parsed.engineers.length ? parsed.engineers : DEFAULT_ENGINEERS,
           currentJobId: parsed.currentJobId || null,
-          settings: normaliseSettings(parsed.settings || {})
+          settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", password: DEFAULT_PASSWORD, passwordEnabled: true, ...(parsed.settings || {}) }
         };
       }
     } catch (e) {
       console.warn(e);
     }
-    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: normaliseSettings({}) };
+    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", password: DEFAULT_PASSWORD, passwordEnabled: true } };
   }
 
   function persist() {
@@ -205,7 +235,7 @@
     state.currentJobId = job.id;
     ui.currentJobId = job.id;
     ui.tab = "engine";
-    ui.openSections = ["Customer & Machine", "Engine Details", "Parts Used"];
+    ui.openSections = ["Arrival", "Strip Down", "Parts"];
     persist();
     showToast("New engine job created");
   }
@@ -247,6 +277,11 @@
   function statusClass(status) {
     return {
       "In Progress": "status-in-progress",
+      "Awaiting Parts": "status-on-hold",
+      "Awaiting Machining": "status-on-hold",
+      "Ready For Dyno": "status-not-started",
+      "Ready For Shipping": "status-not-started",
+      "Complete": "status-completed",
       "Completed": "status-completed",
       "On Hold": "status-on-hold",
       "Not Started": "status-not-started"
@@ -275,51 +310,6 @@
       </button>
       <div class="section-body">${body}</div>
     </div>`;
-  }
-
-  function isLocked() {
-    return !!state.settings?.passwordEnabled && !ui.unlocked;
-  }
-
-  function renderLogin() {
-    $app.innerHTML = `<div class="login-page">
-      <div class="login-card">
-        <div class="logo-mark login-logo">TIMIK<small>AGRICULTURE</small></div>
-        <h1>Engine Rebuild Record</h1>
-        <p class="help">Enter the workshop password to open the app.</p>
-        <input class="input login-input" type="password" placeholder="Password" value="${moneySafe(ui.loginPassword)}"
-          oninput="TIMIK.setLoginPassword(this.value)" onkeydown="if(event.key==='Enter') TIMIK.unlockApp()" autofocus />
-        ${ui.loginError ? `<div class="login-error">${moneySafe(ui.loginError)}</div>` : ""}
-        <button class="primary-btn full-width" onclick="TIMIK.unlockApp()">Unlock App</button>
-        <div class="app-footer">Powered by SouthWorx • ${APP_VERSION}</div>
-      </div>
-    </div>`;
-  }
-
-  function setLoginPassword(value) {
-    ui.loginPassword = value;
-    ui.loginError = "";
-  }
-
-  function unlockApp() {
-    const expected = state.settings?.appPassword || DEFAULT_PASSWORD;
-    if (ui.loginPassword === expected) {
-      ui.unlocked = true;
-      ui.loginPassword = "";
-      ui.loginError = "";
-      sessionStorage.setItem(AUTH_KEY, "yes");
-      render();
-      return;
-    }
-    ui.loginError = "Incorrect password";
-    renderLogin();
-  }
-
-  function lockApp() {
-    ui.unlocked = false;
-    ui.loginPassword = "";
-    sessionStorage.removeItem(AUTH_KEY);
-    render();
   }
 
   function renderShell(content) {
@@ -386,6 +376,112 @@
     </div>`;
   }
 
+  function taskList(key, labels, values = {}, options = PROCESS_OPTIONS) {
+    return `<div class="check-list">${labels.map(label => {
+      const val = values?.[label] || "";
+      return `<div class="check-item workflow-choice">
+        <span>${moneySafe(label)}</span>
+        <div class="segment">
+          ${options.map(x => `<button class="${val === x ? "active" : ""}" onclick="TIMIK.setCheck('${key}','${label.replace(/'/g, "\\'")}','${x}')">${moneySafe(x)}</button>`).join("")}
+        </div>
+      </div>`;
+    }).join("")}</div>`;
+  }
+
+  function tickList(key, labels, values = {}) {
+    return `<div class="check-list">${labels.map(label => {
+      const checked = !!values?.[label];
+      return `<label class="check-item tick-choice">
+        <span>${moneySafe(label)}</span>
+        <input type="checkbox" ${checked ? "checked" : ""} onchange="TIMIK.setBooleanCheck('${key}','${label.replace(/'/g, "\\'")}',this.checked)" />
+      </label>`;
+    }).join("")}</div>`;
+  }
+
+  function renderPhotoPlaceholder(title, help) {
+    return `<div class="photo-stage-box">
+      <strong>${moneySafe(title)}</strong>
+      <span>${moneySafe(help)}</span>
+      <small>Photo capture/upload will be refined in the next photo workflow pass.</small>
+    </div>`;
+  }
+
+  function renderArrival(j) {
+    return `<div class="grid-2">
+      ${field("Customer", j.customer, "TIMIK.updateJobField('customer',this.value)", "text", `list="customer-list"`)}
+      ${field("Engineer", j.engineer || state.settings?.defaultEngineer || "", "TIMIK.updateJobField('engineer',this.value)", "text", 'placeholder="Engineer name"')}
+      ${field("Contact", j.contact, "TIMIK.updateJobField('contact',this.value)")}
+      ${field("Phone", j.phone, "TIMIK.updateJobField('phone',this.value)", "tel")}
+      ${field("Email", j.email, "TIMIK.updateJobField('email',this.value)", "email")}
+      ${field("Engine make", j.engineMake, "TIMIK.updateJobField('engineMake',this.value)")}
+      ${field("Engine model", j.engineModel, "TIMIK.updateJobField('engineModel',this.value)")}
+      ${field("Engine serial number", j.engineSerial, "TIMIK.updateJobField('engineSerial',this.value)")}
+      ${field("Build reference", j.buildRef, "TIMIK.updateJobField('buildRef',this.value)")}
+      ${select("Previous rebuild?", j.previousRebuild, ["Unknown", "No", "Yes"], "TIMIK.updateJobField('previousRebuild',this.value)")}
+      ${select("Job status", j.status, JOB_STATUS_OPTIONS, "TIMIK.updateJob({status:this.value})")}
+    </div>
+    <datalist id="customer-list">${state.customers.map(c => `<option value="${moneySafe(c)}"></option>`).join("")}</datalist>
+    ${textarea("Courier / delivery notes", j.deliveryNotes || "", "TIMIK.updateJobField('deliveryNotes',this.value)")}
+    ${textarea("Arrival notes", j.arrivalNotes || "", "TIMIK.updateJobField('arrivalNotes',this.value)")}
+    <h3 class="subsection-title">Arrival actions</h3>
+    ${tickList("arrivalTasks", ARRIVAL_TASKS, j.arrivalTasks)}
+    ${renderPhotoPlaceholder("Arrival Photos", "Overall engine, courier condition, pallet condition and visible damage.")}
+    ${renderPhotoPlaceholder("Serial Number Photos", "Clear serial plate/number evidence before strip down.")}`;
+  }
+
+  function renderStripDown(j) {
+    return `<h3 class="subsection-title">Process tasks</h3>
+      ${taskList("stripProcess", STRIP_PROCESS_TASKS, j.stripProcess, PROCESS_OPTIONS)}
+      <h3 class="subsection-title">Inspection items</h3>
+      ${taskList("stripChecks", STRIP_INSPECTIONS, j.stripChecks, INSPECTION_OPTIONS)}
+      ${textarea("Strip notes", j.stripNotes || "", "TIMIK.updateJobField('stripNotes',this.value)")}
+      ${textarea("Damage findings", j.damageFindings || "", "TIMIK.updateJobField('damageFindings',this.value)")}
+      ${textarea("Cleaning notes", j.cleaningNotes || "", "TIMIK.updateJobField('cleaningNotes',this.value)")}
+      ${textarea("Machining required notes", j.machiningRequiredNotes || "", "TIMIK.updateJobField('machiningRequiredNotes',this.value)")}
+      ${renderPhotoPlaceholder("Damage Photos", "Damage, wear, contamination, broken parts and anything warranty related.")}
+      ${renderPhotoPlaceholder("Strip Photos", "Strip-down condition, removed components and cleaned parts.")}`;
+  }
+
+  function renderNonWorkshop(j) {
+    return `<h3 class="subsection-title">External work tracking</h3>
+      ${taskList("externalWork", EXTERNAL_ITEMS, j.externalWork, EXTERNAL_OPTIONS)}
+      ${textarea("External work notes", j.externalNotes || "", "TIMIK.updateJobField('externalNotes',this.value)")}
+      ${textarea("Office / paperwork notes", j.officeNotes || "", "TIMIK.updateJobField('officeNotes',this.value)")}`;
+  }
+
+  function renderBuild(j) {
+    return `<h3 class="subsection-title">Build tasks</h3>
+      ${taskList("buildTasks", BUILD_TASKS, j.buildTasks, PROCESS_OPTIONS)}
+      ${textarea("Build notes", j.buildNotes || "", "TIMIK.updateJobField('buildNotes',this.value)")}
+      ${textarea("Bearing clearances", j.bearingClearances || "", "TIMIK.updateJobField('bearingClearances',this.value)")}
+      ${textarea("Torque settings", j.torqueSettings || "", "TIMIK.updateJobField('torqueSettings',this.value)")}
+      ${textarea("Valve clearances", j.valveClearances || "", "TIMIK.updateJobField('valveClearances',this.value)")}
+      ${renderMeasurements(j)}
+      ${renderPhotoPlaceholder("Build Photos", "Build progress, timing marks, bearing/clearance evidence and assembled stages.")}`;
+  }
+
+  function renderDyno(j) {
+    return `<h3 class="subsection-title">Dyno checks</h3>
+      ${taskList("dynoChecks", DYNO_INSPECTIONS, j.dynoChecks, INSPECTION_OPTIONS)}
+      <div class="grid-2">
+        ${field("Cold oil pressure", j.coldOilPressure || "", "TIMIK.updateJobField('coldOilPressure',this.value)")}
+        ${field("Hot oil pressure", j.hotOilPressure || "", "TIMIK.updateJobField('hotOilPressure',this.value)")}
+        ${field("Max RPM", j.maxRpm || "", "TIMIK.updateJobField('maxRpm',this.value)")}
+        ${field("Load %", j.loadPercent || "", "TIMIK.updateJobField('loadPercent',this.value)")}
+      </div>
+      ${textarea("Full load results", j.fullLoadResults || "", "TIMIK.updateJobField('fullLoadResults',this.value)")}
+      ${textarea("Leak check notes", j.leakCheckNotes || "", "TIMIK.updateJobField('leakCheckNotes',this.value)")}
+      ${textarea("Dyno notes", j.dynoNotes || "", "TIMIK.updateJobField('dynoNotes',this.value)")}
+      ${renderPhotoPlaceholder("Dyno Photos", "Dyno setup, readings, leaks found/addressed and final test evidence.")}`;
+  }
+
+  function renderPackaging(j) {
+    return `${taskList("packagingTasks", PACKAGING_TASKS, j.packagingTasks, SIMPLE_OPTIONS)}
+      ${textarea("Packaging notes", j.packagingNotes || "", "TIMIK.updateJobField('packagingNotes',this.value)")}
+      ${textarea("Shipping notes", j.shippingNotes || "", "TIMIK.updateJobField('shippingNotes',this.value)")}
+      ${renderPhotoPlaceholder("Final Shipping Photos", "Painted engine, heat tabs, sticker, pallet, strapping, wrapping and loaded engine.")}`;
+  }
+
   function renderEngine() {
     const j = currentJob();
     const content = `${renderHero()}
@@ -397,15 +493,14 @@
         <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>
       </div>
-      ${section("Customer & Machine", "👥", renderCustomer(j))}
-      ${section("Engine Details", "⚙️", renderEngineDetails(j))}
-      ${section("Strip Inspection", "🔍", renderChecks("stripChecks", DEFAULT_CHECKS, j.stripChecks) + textarea("Strip-down notes / damage findings", j.stripNotes, "TIMIK.updateJobField('stripNotes',this.value)"))}
-      ${section("Measurements & Tolerances", "📏", renderMeasurements(j))}
-      ${section("Parts Used", "🧰", renderParts(j))}
-      ${section("Rebuild Stages", "✅", renderStages(j))}
-      ${section("Final Checks", "📋", renderChecks("finalChecks", DEFAULT_FINAL_CHECKS, j.finalChecks))}
-      ${section("Sign Off & Notes", "✍️", renderSignOff(j))}
-      ${section("Photos", "📷", renderPhotos(j, "job"))}
+      ${section("Arrival", "📥", renderArrival(j))}
+      ${section("Strip Down", "🔍", renderStripDown(j))}
+      ${section("Non Workshop", "🚚", renderNonWorkshop(j))}
+      ${section("Build", "🔧", renderBuild(j))}
+      ${section("Dyno", "📈", renderDyno(j))}
+      ${section("Packaging", "📦", renderPackaging(j))}
+      ${section("Parts", "🧰", renderParts(j))}
+      ${section("Sign Off", "✍️", renderSignOff(j))}
       <div class="action-row no-print">
         <button class="secondary-btn full-width" onclick="TIMIK.printJob()">Export / Print Job</button>
         <button class="ghost-btn full-width" onclick="TIMIK.emailJob()">Email Job Summary</button>
@@ -672,18 +767,6 @@
       <input id="importFile" type="file" accept="application/json" style="display:none" onchange="TIMIK.importData(event)" />
       <button class="danger-btn full-width" onclick="TIMIK.clearAllData()">Clear All Data</button>
 
-      <h2 class="mini-title">Password Protection</h2>
-      <div class="settings-card">
-        <div class="card-line"><span>Status</span><strong>${settings.passwordEnabled ? "Enabled" : "Disabled"}</strong></div>
-        <label class="check-item settings-check">
-          <input type="checkbox" ${settings.passwordEnabled ? "checked" : ""} onchange="TIMIK.updatePasswordEnabled(this.checked)" />
-          <span>Require password when opening the app</span>
-        </label>
-        ${field("App password", settings.appPassword || DEFAULT_PASSWORD, "TIMIK.updatePassword(this.value)", "text", 'placeholder="Password"')}
-        <p class="help">Default password is <strong>timik</strong>. This is basic local app protection for workshop use, not bank-level security.</p>
-        <button class="secondary-btn full-width" onclick="TIMIK.lockApp()">Lock App Now</button>
-      </div>
-
       <h2 class="mini-title">App Refresh</h2>
       <div class="settings-card">
         <p class="help">If your iPhone/iPad is showing old buttons or an old layout, press this. It clears the PWA cache and reloads the latest files.</p>
@@ -693,7 +776,7 @@
       <h2 class="mini-title">About</h2>
       ${listLink("ℹ️", "About TIMIK Engine Rebuild", "Fast workshop documentation for engine rebuilds")}
       ${listLink("📱", "PWA / Install", "Use Add to Home Screen on iPhone/iPad")}
-      ${listLink("🔐", "Password Protection", "Can be added once the workflow is settled")}
+      ${listLink("🔐", "Password Protection", "Default password: timik")}
       <div class="footer-brand">Powered by SouthWorx • ${APP_VERSION}</div>`;
     renderShell(content);
   }
@@ -703,7 +786,6 @@
   }
 
   function render() {
-    if (isLocked()) return renderLogin();
     if (ui.tab === "engine") return renderEngine();
     if (ui.tab === "diary") return renderDiary();
     if (ui.tab === "report") return renderReport();
@@ -712,7 +794,15 @@
   }
 
   function jobTitle(j) {
-    return [j.engineMake, j.engineModel].filter(Boolean).join(" ") || [j.machineMake, j.machineModel].filter(Boolean).join(" ") || "Engine Rebuild";
+    return [j.engineMake, j.engineModel].filter(Boolean).join(" ") || "Engine Rebuild";
+  }
+
+  function setBooleanCheck(key, label, val) {
+    const j = currentJob();
+    if (!j[key]) j[key] = {};
+    j[key][label] = !!val;
+    j.updatedAt = todayISO();
+    persist();
   }
 
   function setCheck(key, label, val) {
@@ -894,7 +984,6 @@
       `Job: ${j.jobNo}`,
       `Status: ${j.status}`,
       `Customer: ${j.customer}`,
-      `Machine: ${j.machineMake} ${j.machineModel}`,
       `Engine: ${j.engineMake} ${j.engineModel}`,
       `Engine Serial: ${j.engineSerial}`,
       ``,
@@ -981,26 +1070,6 @@
   }
 
 
-  function updatePasswordEnabled(enabled) {
-    state.settings = normaliseSettings(state.settings || {});
-    state.settings.passwordEnabled = !!enabled;
-    state.settings.passwordMigratedV11 = true;
-    if (!enabled) {
-      ui.unlocked = true;
-      sessionStorage.setItem(AUTH_KEY, "yes");
-    }
-    persist();
-    render();
-  }
-
-  function updatePassword(value) {
-    state.settings = normaliseSettings(state.settings || {});
-    state.settings.appPassword = value || DEFAULT_PASSWORD;
-    state.settings.passwordEnabled = true;
-    state.settings.passwordMigratedV11 = true;
-    persist();
-  }
-
   function updateSetting(key, val) {
     state.settings = state.settings || {};
     state.settings[key] = val;
@@ -1044,12 +1113,12 @@
   }
 
   window.TIMIK = {
-    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setCheck, setStage,
+    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, setBooleanCheck, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
     setSavedSearch, setSavedFilter, openJob, duplicateJob, deleteJob,
-    exportData, importData, updateSetting, updatePasswordEnabled, updatePassword, lockApp, setLoginPassword, unlockApp, refreshApp, clearAllData
+    exportData, importData, updateSetting, refreshApp, clearAllData
   };
 
   if ("serviceWorker" in navigator) {
@@ -1058,4 +1127,3 @@
 
   render();
 })();
-
