@@ -883,3 +883,56 @@ input[type="date"] {
   background:white;
   box-shadow:0 2px 8px rgba(0,0,0,0.08);
 }
+
+
+/* V11 password/login restore */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(180deg, #E8F2FF 0%, #F4F7FB 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+  padding: 24px;
+  text-align: center;
+}
+
+.login-logo {
+  margin-bottom: 14px;
+}
+
+.login-card h1 {
+  margin: 0 0 8px;
+  color: var(--navy);
+  font-size: 24px;
+}
+
+.login-input {
+  margin: 16px 0 10px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.login-error {
+  color: var(--danger);
+  background: var(--danger-bg);
+  border: 1px solid #f7b4ad;
+  padding: 10px;
+  border-radius: 12px;
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.settings-check {
+  grid-template-columns: 30px 1fr;
+  margin: 10px 0;
+}

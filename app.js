@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v1";
-  const APP_VERSION = "V7 Default Engineer Improvements";
+  const APP_VERSION = "V11 Stability + Password Restore";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const DEFAULT_CHECKS = ["Oil condition", "Metal contamination", "Cylinder/bore condition", "Crankshaft condition", "Cylinder head condition", "Turbo condition", "Injector condition", "Cooling system condition"];
   const DEFAULT_FINAL_CHECKS = ["Oil system primed", "Coolant system checked", "All torque marks completed", "Leaks checked", "Engine turns freely", "Test run completed", "Photos added", "Customer/warranty notes completed"];
@@ -20,6 +20,33 @@
   };
   const moneySafe = (v) => String(v ?? "").replace(/[<>&]/g, s => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[s]));
   const num = (v) => Number.parseFloat(v || 0) || 0;
+  const DEFAULT_PASSWORD = "timik";
+  const AUTH_KEY = "timik_engine_unlocked_v11";
+
+  function defaultSettings() {
+    return {
+      workshopName: "TIMIK Agriculture",
+      defaultEngineer: "",
+      defaultEmail: "",
+      passwordEnabled: true,
+      appPassword: DEFAULT_PASSWORD,
+      passwordMigratedV11: true
+    };
+  }
+
+  function normaliseSettings(existing = {}) {
+    const merged = { ...defaultSettings(), ...existing };
+    // Older TIMIK builds had passwordEnabled set to false by default and no stored password.
+    // For V11, restore protection automatically unless the user later turns it off.
+    if (!existing.appPassword && !existing.passwordMigratedV11) {
+      merged.passwordEnabled = true;
+      merged.appPassword = DEFAULT_PASSWORD;
+      merged.passwordMigratedV11 = true;
+    }
+    if (!merged.appPassword) merged.appPassword = DEFAULT_PASSWORD;
+    return merged;
+  }
+
 
   const blankJob = () => ({
     id: uid(),
@@ -79,7 +106,10 @@
     savedSearch: "",
     savedFilter: "All",
     reportWeekOffset: 0,
-    toast: ""
+    toast: "",
+    unlocked: sessionStorage.getItem(AUTH_KEY) === "yes",
+    loginPassword: "",
+    loginError: ""
   };
 
   if (!ui.currentJobId || !state.jobs.find(j => j.id === ui.currentJobId)) {
@@ -101,13 +131,13 @@
           customers: Array.isArray(parsed.customers) ? parsed.customers : [],
           engineers: Array.isArray(parsed.engineers) && parsed.engineers.length ? parsed.engineers : DEFAULT_ENGINEERS,
           currentJobId: parsed.currentJobId || null,
-          settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false, ...(parsed.settings || {}) }
+          settings: normaliseSettings(parsed.settings || {})
         };
       }
     } catch (e) {
       console.warn(e);
     }
-    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: { workshopName: "TIMIK Agriculture", defaultEngineer: "", defaultEmail: "", passwordEnabled: false } };
+    return { jobs: [], diary: [], customers: [], engineers: DEFAULT_ENGINEERS, currentJobId: null, settings: normaliseSettings({}) };
   }
 
   function persist() {
@@ -245,6 +275,51 @@
       </button>
       <div class="section-body">${body}</div>
     </div>`;
+  }
+
+  function isLocked() {
+    return !!state.settings?.passwordEnabled && !ui.unlocked;
+  }
+
+  function renderLogin() {
+    $app.innerHTML = `<div class="login-page">
+      <div class="login-card">
+        <div class="logo-mark login-logo">TIMIK<small>AGRICULTURE</small></div>
+        <h1>Engine Rebuild Record</h1>
+        <p class="help">Enter the workshop password to open the app.</p>
+        <input class="input login-input" type="password" placeholder="Password" value="${moneySafe(ui.loginPassword)}"
+          oninput="TIMIK.setLoginPassword(this.value)" onkeydown="if(event.key==='Enter') TIMIK.unlockApp()" autofocus />
+        ${ui.loginError ? `<div class="login-error">${moneySafe(ui.loginError)}</div>` : ""}
+        <button class="primary-btn full-width" onclick="TIMIK.unlockApp()">Unlock App</button>
+        <div class="app-footer">Powered by SouthWorx • ${APP_VERSION}</div>
+      </div>
+    </div>`;
+  }
+
+  function setLoginPassword(value) {
+    ui.loginPassword = value;
+    ui.loginError = "";
+  }
+
+  function unlockApp() {
+    const expected = state.settings?.appPassword || DEFAULT_PASSWORD;
+    if (ui.loginPassword === expected) {
+      ui.unlocked = true;
+      ui.loginPassword = "";
+      ui.loginError = "";
+      sessionStorage.setItem(AUTH_KEY, "yes");
+      render();
+      return;
+    }
+    ui.loginError = "Incorrect password";
+    renderLogin();
+  }
+
+  function lockApp() {
+    ui.unlocked = false;
+    ui.loginPassword = "";
+    sessionStorage.removeItem(AUTH_KEY);
+    render();
   }
 
   function renderShell(content) {
@@ -597,6 +672,18 @@
       <input id="importFile" type="file" accept="application/json" style="display:none" onchange="TIMIK.importData(event)" />
       <button class="danger-btn full-width" onclick="TIMIK.clearAllData()">Clear All Data</button>
 
+      <h2 class="mini-title">Password Protection</h2>
+      <div class="settings-card">
+        <div class="card-line"><span>Status</span><strong>${settings.passwordEnabled ? "Enabled" : "Disabled"}</strong></div>
+        <label class="check-item settings-check">
+          <input type="checkbox" ${settings.passwordEnabled ? "checked" : ""} onchange="TIMIK.updatePasswordEnabled(this.checked)" />
+          <span>Require password when opening the app</span>
+        </label>
+        ${field("App password", settings.appPassword || DEFAULT_PASSWORD, "TIMIK.updatePassword(this.value)", "text", 'placeholder="Password"')}
+        <p class="help">Default password is <strong>timik</strong>. This is basic local app protection for workshop use, not bank-level security.</p>
+        <button class="secondary-btn full-width" onclick="TIMIK.lockApp()">Lock App Now</button>
+      </div>
+
       <h2 class="mini-title">App Refresh</h2>
       <div class="settings-card">
         <p class="help">If your iPhone/iPad is showing old buttons or an old layout, press this. It clears the PWA cache and reloads the latest files.</p>
@@ -616,6 +703,7 @@
   }
 
   function render() {
+    if (isLocked()) return renderLogin();
     if (ui.tab === "engine") return renderEngine();
     if (ui.tab === "diary") return renderDiary();
     if (ui.tab === "report") return renderReport();
@@ -893,6 +981,26 @@
   }
 
 
+  function updatePasswordEnabled(enabled) {
+    state.settings = normaliseSettings(state.settings || {});
+    state.settings.passwordEnabled = !!enabled;
+    state.settings.passwordMigratedV11 = true;
+    if (!enabled) {
+      ui.unlocked = true;
+      sessionStorage.setItem(AUTH_KEY, "yes");
+    }
+    persist();
+    render();
+  }
+
+  function updatePassword(value) {
+    state.settings = normaliseSettings(state.settings || {});
+    state.settings.appPassword = value || DEFAULT_PASSWORD;
+    state.settings.passwordEnabled = true;
+    state.settings.passwordMigratedV11 = true;
+    persist();
+  }
+
   function updateSetting(key, val) {
     state.settings = state.settings || {};
     state.settings[key] = val;
@@ -941,7 +1049,7 @@
     handlePhotos, removePhoto, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
     setSavedSearch, setSavedFilter, openJob, duplicateJob, deleteJob,
-    exportData, importData, updateSetting, refreshApp, clearAllData
+    exportData, importData, updateSetting, updatePasswordEnabled, updatePassword, lockApp, setLoginPassword, unlockApp, refreshApp, clearAllData
   };
 
   if ("serviceWorker" in navigator) {
@@ -951,9 +1059,3 @@
   render();
 })();
 
-// V10 wording update placeholder
-window.TIMIK_STATUS_OPTIONS = {
-  process: ["Pending", "In Progress", "Complete"],
-  external: ["Not Sent", "Sent", "Returned"],
-  inspection: ["Pass", "Fail", "Monitor"]
-};

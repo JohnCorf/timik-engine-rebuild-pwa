@@ -27,3 +27,10 @@ Footer branding remains: Powered by SouthWorx.
 - Default engineer now auto-fills new engine jobs and diary entries.
 - Engineer fields are typed text fields, not fixed dropdowns.
 - Weekly report now includes hours by engineer.
+
+
+## V11 Notes
+
+Password protection has been restored. The default password is `timik`. You can change it in Settings > Password Protection.
+
+If a phone still shows an older version, open Settings in the app and use Refresh App / Clear Cache, or remove and re-add the PWA from the home screen.
