@@ -1,0 +1,32 @@
+TIMIK Engine Rebuild Record — V18 Correct Workflow State + Button Styling Fix
+
+Base:
+- Built from the latest ZIP supplied by the user: timik-engine-rebuild-pwa(4).zip
+
+Fixed:
+1. Section open/close behaviour
+- Removed the default open sections: Arrival, Strip Down and Parts.
+- New jobs now start with all workflow sections collapsed.
+- Open/closed sections are saved per job using the app's existing ui.openSections system where possible.
+
+2. Engineer choice buttons
+- Fixed the actual .segment button styling used by the current app.
+- Pending / In Progress / Complete etc. now appear as separate buttons.
+- Removed the visual feel of one large grey button bar.
+
+3. Service worker cleanup
+- Removed the incorrect window.TIMIK_STATUS_OPTIONS code from service-worker.js.
+- Updated cache naming to V18.
+
+Not intentionally changed:
+- Password protection
+- Photo uploads
+- Parts logic
+- Daily Diary
+- Weekly Report
+- Saved Jobs
+- Settings
+- Customer database
+
+app.js syntax check: PASS
+

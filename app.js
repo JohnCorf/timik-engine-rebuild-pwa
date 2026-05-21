@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V17 Workflow UX Refinement";
+  const APP_VERSION = "V18 Correct Workflow State + Button Styling Fix";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -123,7 +123,7 @@
   let state = loadState();
   let ui = {
     tab: "engine",
-    openSections: ["Arrival", "Strip Down", "Parts"],
+    openSections: [],
     currentJobId: state.currentJobId || null,
     diaryDraft: blankDiary(),
     partDraft: { partNo: "", description: "", qty: "1", addNotes: false, notes: "" },
@@ -162,6 +162,7 @@
     if (!state.jobs.length) state.jobs.push(first);
     ui.currentJobId = first.id;
     state.currentJobId = first.id;
+  loadOpenSectionsForJob((state.jobs || []).find(j => j.id === state.currentJobId));
     persist();
   }
 
@@ -248,9 +249,10 @@
     const job = blankJob();
     state.jobs.unshift(job);
     state.currentJobId = job.id;
+  loadOpenSectionsForJob((state.jobs || []).find(j => j.id === state.currentJobId));
     ui.currentJobId = job.id;
     ui.tab = "engine";
-    ui.openSections = ["Arrival", "Strip Down", "Parts"];
+    ui.openSections = [];
     persist();
     showToast("New engine job created");
   }
@@ -279,11 +281,60 @@
     if (!state.jobs.length) state.jobs.push(blankJob());
     ui.currentJobId = state.jobs[0].id;
     state.currentJobId = ui.currentJobId;
+  loadOpenSectionsForJob((state.jobs || []).find(j => j.id === state.currentJobId));
     persist();
     render();
   }
 
-  function toggleSection(name) {
+  
+function getOpenSectionStorageKey(jobId) {
+  return "timik_open_sections_" + (jobId || "new");
+}
+
+function getActiveJobForOpenSections() {
+  if (typeof state !== "undefined") {
+    if (state.currentJobId && Array.isArray(state.jobs)) {
+      return state.jobs.find(j => j.id === state.currentJobId) || null;
+    }
+    if (state.currentJob) return state.currentJob;
+    if (state.activeJob) return state.activeJob;
+  }
+  if (typeof currentJob === "function") {
+    try { return currentJob(); } catch (e) {}
+  }
+  return null;
+}
+
+function saveOpenSectionsForJob() {
+  try {
+    const job = getActiveJobForOpenSections();
+    const key = getOpenSectionStorageKey(job && job.id);
+    localStorage.setItem(key, JSON.stringify(ui.openSections || []));
+    if (job) job.openSections = Array.isArray(ui.openSections) ? [...ui.openSections] : [];
+    if (typeof persist === "function") persist();
+  } catch (e) {
+    console.warn("Could not save open section state", e);
+  }
+}
+
+function loadOpenSectionsForJob(job) {
+  try {
+    if (!job || !job.id) {
+      ui.openSections = [];
+      return;
+    }
+    if (Array.isArray(job.openSections)) {
+      ui.openSections = [];
+      return;
+    }
+    const saved = localStorage.getItem(getOpenSectionStorageKey(job.id));
+    ui.openSections = saved ? JSON.parse(saved) : [];
+  } catch (e) {
+    ui.openSections = [];
+  }
+}
+
+function toggleSection(name) {
     if (ui.openSections.includes(name)) ui.openSections = ui.openSections.filter(x => x !== name);
     else ui.openSections.push(name);
     render();
@@ -1109,6 +1160,7 @@
   function openJob(id) {
     ui.currentJobId = id;
     state.currentJobId = id;
+  loadOpenSectionsForJob((state.jobs || []).find(j => j.id === state.currentJobId));
     ui.tab = "engine";
     persist();
     render();
@@ -1247,6 +1299,7 @@
     state.jobs.push(first);
     ui.currentJobId = first.id;
     state.currentJobId = first.id;
+  loadOpenSectionsForJob((state.jobs || []).find(j => j.id === state.currentJobId));
     persist();
     render();
   }
@@ -1264,6 +1317,7 @@
     window.addEventListener("load", () => navigator.serviceWorker.register("./service-worker.js").catch(console.warn));
   }
 
+  saveOpenSectionsForJob();
   render();
 })();
 

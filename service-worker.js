@@ -1,4 +1,4 @@
-const CACHE_NAME = "timik-engine-rebuild-v17";
+const CACHE_NAME = "timik-engine-rebuild-v18";
 const APP_FILES = [
   "./",
   "./index.html",
@@ -36,8 +36,3 @@ self.addEventListener("fetch", event => {
 
 
 // v17 wording update placeholder
-window.TIMIK_STATUS_OPTIONS = {
-  process: ["Pending", "In Progress", "Complete"],
-  external: ["Not Sent", "Sent", "Returned"],
-  inspection: ["Pass", "Fail", "Monitor"]
-};
