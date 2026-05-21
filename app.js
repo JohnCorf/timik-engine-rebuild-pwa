@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V18 Correct Workflow State + Button Styling Fix";
+  const APP_VERSION = "V19 Job Timer Foundation";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -1500,4 +1500,293 @@ window.removeTimikPart = function(job, partId) {
 
   window.TIMIK_V17_applyWorkflowState = applyWorkflowState;
   window.TIMIK_V17_saveWorkflowState = saveWorkflowState;
+})();
+
+
+
+/* =====================================================
+   V19 — Job Timer Foundation
+   Adds a simple job timer without changing existing job data shape heavily.
+   - Start timer
+   - Stop timer
+   - Saves time entry to current job where possible
+   - Shows total recorded hours for the job
+   ===================================================== */
+(function () {
+  const ACTIVE_TIMER_KEY = "timik_active_job_timer_v19";
+  let timerInterval = null;
+
+  function nowIso() {
+    return new Date().toISOString();
+  }
+
+  function getActiveJob() {
+    if (typeof currentJob === "function") {
+      try {
+        const j = currentJob();
+        if (j) return j;
+      } catch (e) {}
+    }
+    if (typeof state !== "undefined") {
+      if (state.currentJob) return state.currentJob;
+      if (state.activeJob) return state.activeJob;
+      if (state.currentJobId && Array.isArray(state.jobs)) {
+        return state.jobs.find(j => j.id === state.currentJobId) || null;
+      }
+      if (state.selectedJobId && Array.isArray(state.jobs)) {
+        return state.jobs.find(j => j.id === state.selectedJobId) || null;
+      }
+    }
+    return null;
+  }
+
+  function getDefaultEngineer() {
+    try {
+      if (typeof state !== "undefined") {
+        return state.settings?.defaultEngineer || state.settings?.engineer || state.defaultEngineer || "";
+      }
+    } catch (e) {}
+    try {
+      const settings = JSON.parse(localStorage.getItem("timik_settings") || "{}");
+      return settings.defaultEngineer || settings.engineer || "";
+    } catch (e) {}
+    return "";
+  }
+
+  function getJobId(job) {
+    return job?.id || job?.jobId || job?.number || job?.jobNumber || "current-job";
+  }
+
+  function formatElapsed(ms) {
+    if (!ms || ms < 0) ms = 0;
+    const totalSeconds = Math.floor(ms / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+  }
+
+  function decimalHours(ms) {
+    return Math.round((ms / 3600000) * 100) / 100;
+  }
+
+  function getActiveTimer() {
+    try {
+      return JSON.parse(localStorage.getItem(ACTIVE_TIMER_KEY) || "null");
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function setActiveTimer(timer) {
+    if (timer) localStorage.setItem(ACTIVE_TIMER_KEY, JSON.stringify(timer));
+    else localStorage.removeItem(ACTIVE_TIMER_KEY);
+  }
+
+  function getTotalJobHours(job) {
+    const entries = Array.isArray(job?.timeEntries) ? job.timeEntries : [];
+    return entries.reduce((sum, entry) => sum + (Number(entry.hours) || 0), 0);
+  }
+
+  function persistExistingApp() {
+    try {
+      if (typeof persist === "function") {
+        persist();
+        return;
+      }
+      if (typeof saveState === "function") {
+        saveState();
+        return;
+      }
+      if (typeof saveData === "function") {
+        saveData();
+        return;
+      }
+    } catch (e) {
+      console.warn("Timer could not call existing persist function", e);
+    }
+  }
+
+  function ensureTimerPanel() {
+    const job = getActiveJob();
+    if (!job) return;
+
+    let existing = document.getElementById("job-timer-panel-v19");
+    if (existing) return;
+
+    const headerTargets = [
+      document.querySelector(".job-actions"),
+      document.querySelector(".hero-actions"),
+      document.querySelector(".action-strip"),
+      document.querySelector(".job-card"),
+      document.querySelector("main"),
+      document.body
+    ].filter(Boolean);
+
+    const target = headerTargets[0];
+    if (!target) return;
+
+    const panel = document.createElement("section");
+    panel.id = "job-timer-panel-v19";
+    panel.className = "timer-panel";
+    panel.innerHTML = `
+      <div class="timer-panel-head">
+        <div>
+          <div class="timer-title">Job Timer</div>
+          <div class="timer-subtitle">Track workshop time against this engine rebuild.</div>
+        </div>
+        <div class="timer-total">
+          <span>Total</span>
+          <strong id="job-timer-total-v19">0.00 hrs</strong>
+        </div>
+      </div>
+
+      <div class="timer-display" id="job-timer-display-v19">00:00:00</div>
+
+      <div class="timer-buttons">
+        <button type="button" class="ui-btn ui-btn-primary timer-start" onclick="window.TIMIK_V19_startTimer()">Start Timer</button>
+        <button type="button" class="ui-btn timer-stop" onclick="window.TIMIK_V19_stopTimer()">Stop & Save</button>
+      </div>
+
+      <label class="timer-note-label">
+        Timer note
+        <textarea id="job-timer-note-v19" class="ui-input timer-note" rows="2" placeholder="Optional: what was worked on?"></textarea>
+      </label>
+
+      <div class="timer-history" id="job-timer-history-v19"></div>
+    `;
+
+    if (target === document.body) {
+      document.body.prepend(panel);
+    } else {
+      target.insertAdjacentElement("afterend", panel);
+    }
+
+    updateTimerPanel();
+  }
+
+  function updateTimerPanel() {
+    const job = getActiveJob();
+    const panel = document.getElementById("job-timer-panel-v19");
+    if (!job || !panel) return;
+
+    const timer = getActiveTimer();
+    const jobId = getJobId(job);
+    const isActiveForThisJob = timer && timer.jobId === jobId;
+
+    const display = document.getElementById("job-timer-display-v19");
+    const total = document.getElementById("job-timer-total-v19");
+    const history = document.getElementById("job-timer-history-v19");
+    const startBtn = panel.querySelector(".timer-start");
+    const stopBtn = panel.querySelector(".timer-stop");
+
+    if (display) {
+      const elapsed = isActiveForThisJob ? Date.now() - new Date(timer.startTime).getTime() : 0;
+      display.textContent = formatElapsed(elapsed);
+      panel.classList.toggle("timer-running", !!isActiveForThisJob);
+    }
+
+    if (total) {
+      total.textContent = getTotalJobHours(job).toFixed(2) + " hrs";
+    }
+
+    if (startBtn) startBtn.disabled = !!isActiveForThisJob;
+    if (stopBtn) stopBtn.disabled = !isActiveForThisJob;
+
+    if (history) {
+      const entries = Array.isArray(job.timeEntries) ? job.timeEntries : [];
+      if (!entries.length) {
+        history.innerHTML = `<div class="timer-empty">No recorded timer entries yet.</div>`;
+      } else {
+        history.innerHTML = entries.slice().reverse().slice(0, 5).map(entry => `
+          <div class="timer-entry">
+            <div>
+              <strong>${entry.hours || 0} hrs</strong>
+              <span>${entry.date || ""}</span>
+            </div>
+            <div class="timer-entry-note">${entry.note || "No note added"}</div>
+          </div>
+        `).join("");
+      }
+    }
+  }
+
+  window.TIMIK_V19_startTimer = function () {
+    const job = getActiveJob();
+    if (!job) {
+      alert("Please create or open a job before starting the timer.");
+      return;
+    }
+
+    const existing = getActiveTimer();
+    if (existing) {
+      alert("A timer is already running. Stop the current timer before starting another one.");
+      return;
+    }
+
+    setActiveTimer({
+      jobId: getJobId(job),
+      jobNumber: job.jobNumber || job.number || "",
+      engineer: getDefaultEngineer(),
+      startTime: nowIso()
+    });
+
+    updateTimerPanel();
+    if (!timerInterval) timerInterval = setInterval(updateTimerPanel, 1000);
+  };
+
+  window.TIMIK_V19_stopTimer = function () {
+    const job = getActiveJob();
+    const timer = getActiveTimer();
+    if (!job || !timer) return;
+
+    const jobId = getJobId(job);
+    if (timer.jobId !== jobId) {
+      alert("The running timer belongs to another job. Open that job to stop it.");
+      return;
+    }
+
+    const endTime = nowIso();
+    const durationMs = new Date(endTime).getTime() - new Date(timer.startTime).getTime();
+    const hours = decimalHours(durationMs);
+    const noteEl = document.getElementById("job-timer-note-v19");
+    const note = noteEl ? noteEl.value.trim() : "";
+
+    if (!Array.isArray(job.timeEntries)) job.timeEntries = [];
+    job.timeEntries.push({
+      id: "time_" + Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      engineer: timer.engineer || getDefaultEngineer(),
+      startTime: timer.startTime,
+      endTime,
+      hours,
+      note
+    });
+
+    if (noteEl) noteEl.value = "";
+    setActiveTimer(null);
+    persistExistingApp();
+    updateTimerPanel();
+
+    alert("Timer saved: " + hours.toFixed(2) + " hours added to this job.");
+  };
+
+  function bootTimerPanel() {
+    clearTimeout(window.__timikV19TimerBoot);
+    window.__timikV19TimerBoot = setTimeout(function () {
+      ensureTimerPanel();
+      updateTimerPanel();
+      if (!timerInterval) timerInterval = setInterval(updateTimerPanel, 1000);
+    }, 250);
+  }
+
+  window.addEventListener("load", bootTimerPanel);
+  document.addEventListener("click", function () {
+    bootTimerPanel();
+  }, true);
+
+  const observer = new MutationObserver(bootTimerPanel);
+  window.addEventListener("load", function () {
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
 })();

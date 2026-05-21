@@ -1,0 +1,31 @@
+TIMIK Engine Rebuild Record — V19 Job Timer Foundation
+
+Base:
+- Built from V18 Correct Workflow State + Button Fix.
+
+Added:
+- Job Timer panel on the Engine Job page.
+- Start Timer button.
+- Stop & Save button.
+- Live elapsed time display.
+- Optional timer note.
+- Total recorded hours for the current job.
+- Recent timer entry list.
+- Saved time entries are added to the current job as job.timeEntries.
+
+Not changed:
+- Password protection
+- Photo uploads
+- Existing parts section
+- Saved Jobs
+- Daily Diary
+- Weekly Report
+- Settings
+- Customer database
+
+Important:
+- This is the timer foundation only.
+- Next version can connect timer entries into Daily Diary and Weekly Report totals more deeply.
+
+app.js syntax check: PASS
+

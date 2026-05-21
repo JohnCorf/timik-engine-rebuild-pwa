@@ -1,7 +1,7 @@
 {
   "name": "TIMIK Agriculture Engine Rebuild Record",
   "short_name": "TIMIK Engine",
-  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V18 Correct Workflow State + Button Styling Fix",
+  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V19 Job Timer Foundation",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
