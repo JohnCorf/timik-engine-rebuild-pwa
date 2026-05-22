@@ -1,0 +1,34 @@
+TIMIK Engine Rebuild Record — V22 Working Progress + Accordion Sections
+
+Base:
+- Built from V21.1 Real Progress + Section Memory Fix.
+
+Changed:
+1. Progress bars
+- Progress now reads the real job data more flexibly.
+- Counts completion/progress based on completed statuses, pass/monitor results, sent/returned states and notes entered.
+- Stage cards now show started/complete styling more reliably.
+
+2. Accordion behaviour
+- Only one workflow section opens at a time.
+- Opening a new section closes the previously open section.
+- Tapping the open section closes it.
+- New jobs still start with all sections collapsed.
+
+Not intentionally changed:
+- Password protection
+- Photos
+- Job timer
+- Timer-to-diary/report integration
+- Parts
+- Saved Jobs
+- Daily Diary
+- Weekly Report
+- Settings
+- Customer database
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+

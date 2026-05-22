@@ -2262,3 +2262,44 @@ details[open] > summary::after {
 .section-card.open .section-body {
   display: block;
 }
+
+
+/* ================================
+   V22 — Working Progress + Accordion Sections
+   ================================ */
+
+.workflow-progress-item.complete .workflow-progress-mini > div {
+  background: #15803d;
+}
+
+.workflow-progress-item.started .workflow-progress-mini > div {
+  background: #0b5fa5;
+}
+
+.section-card {
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.section-card.open {
+  border-color: #b7c9df;
+  box-shadow: 0 5px 18px rgba(15, 45, 75, 0.08);
+}
+
+.section-head::after {
+  content: "Tap to open";
+  font-size: 12px;
+  font-weight: 700;
+  color: #60758d;
+  margin-left: auto;
+}
+
+.section-card.open .section-head::after {
+  content: "Open";
+  color: #0b5fa5;
+}
+
+@media (max-width: 700px) {
+  .section-head::after {
+    display: none;
+  }
+}

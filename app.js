@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V21.1 Real Progress + Section Memory Fix";
+  const APP_VERSION = "V22 Working Progress + Accordion Sections";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -373,9 +373,9 @@ function loadOpenSectionsForJob(job) {
 
 function toggleSection(name) {
     if (ui.openSections.includes(name)) {
-      ui.openSections = ui.openSections.filter(s => s !== name);
+      ui.openSections = [];
     } else {
-      ui.openSections = [...ui.openSections, name];
+      ui.openSections = [name];
     }
     saveOpenSectionsForCurrentJob();
     persist();
@@ -831,67 +831,78 @@ function toggleSection(name) {
 
 
 
-  function workflowSectionProgress(job, sectionName) {
-    if (!job) return { done: 0, total: 0, percent: 0, label: "0/0" };
+  function getSectionValues(job, sectionName) {
+    if (!job) return [];
 
-    const sectionChecks = {
+    // This intentionally checks the real values stored on the job rather than only one fixed set
+    // of historic key names. It makes the progress bars update even as the workflow wording evolves.
+    const sectionFields = {
       "Arrival": [
-        "arrivalPhotosTaken",
-        "serialNumberPhotoTaken",
-        "jobNumberAssigned",
-        "engineLogged",
-        "engineStored"
+        "arrivalPhotosTaken", "serialNumberPhotoTaken", "jobNumberAssigned", "engineLogged", "engineStored",
+        "arrivalPhoto", "serialPhoto", "logged", "stored", "arrived"
       ],
       "Strip Down": [
-        "powerWashed",
-        "photosTaken",
-        "engineStripped",
-        "partsWashed",
-        "partsTagged"
+        "powerWashed", "photosTaken", "engineStripped", "partsWashed", "partsTagged",
+        "boreCondition", "crankCondition", "headCondition", "oilCondition", "metalContamination",
+        "damageFindings", "stripNotes", "cleaningNotes"
       ],
       "Non Workshop": [
-        "blockMachining",
-        "crankGrinding",
-        "headReman",
-        "turboReman",
-        "starterAlternator"
+        "blockMachining", "crankGrinding", "headReman", "turboReman", "starterAlternator",
+        "block", "crank", "head", "turbo", "starter", "alternator", "externalNotes"
       ],
       "Build": [
-        "workspaceCleaned",
-        "blockCleaned",
-        "partsPrepared",
-        "engineAssembled",
-        "oilFilled"
+        "workspaceCleaned", "blockCleaned", "partsPrepared", "engineAssembled", "oilFilled",
+        "measurements", "bearingClearances", "torqueSettings", "valveClearances", "buildNotes"
       ],
       "Dyno": [
-        "coldStart",
-        "hotStart",
-        "oilPressure",
-        "leakCheck",
-        "fullLoadTest"
+        "coldStart", "hotStart", "oilPressure", "leakCheck", "fullLoadTest",
+        "coldOilPressure", "hotOilPressure", "fullLoadResults", "dynoNotes"
       ],
       "Packaging": [
-        "painted",
-        "heatTabsFitted",
-        "bungsFitted",
-        "wrapped",
-        "palletised",
-        "shippingLabel"
+        "painted", "heatTabsFitted", "bungsFitted", "wrapped", "palletised", "shippingLabel",
+        "packagingNotes", "shippingNotes", "finalPhotos"
       ]
     };
 
-    const keys = sectionChecks[sectionName] || [];
-    if (!keys.length) return { done: 0, total: 0, percent: 0, label: "0/0" };
+    const keys = sectionFields[sectionName] || [];
+    return keys.map(k => job[k] ?? job.checks?.[k] ?? job.workflow?.[k]).filter(v => v !== undefined && v !== null && v !== "");
+  }
 
-    const valueDone = (value) => {
-      if (value === true) return true;
-      if (typeof value !== "string") return false;
-      const v = value.toLowerCase();
-      return ["complete", "completed", "done", "pass", "passed", "returned", "not required"].includes(v);
+  function valueCountsAsProgress(value) {
+    if (value === true) return true;
+    if (typeof value === "number") return value > 0;
+    if (typeof value !== "string") return false;
+
+    const v = value.trim().toLowerCase();
+
+    // Empty or negative workflow states should not count.
+    if (!v || ["pending", "not started", "not sent", "fail", "failed", "no"].includes(v)) return false;
+
+    // These definitely count as completion/progress.
+    if ([
+      "complete", "completed", "done", "in progress", "pass", "passed", "monitor",
+      "sent", "returned", "not required", "ready", "yes"
+    ].includes(v)) return true;
+
+    // Free text notes count as progress because the engineer has recorded information.
+    return v.length > 1;
+  }
+
+  function workflowSectionProgress(job, sectionName) {
+    const values = getSectionValues(job, sectionName);
+
+    // Use a sensible minimum target per section so brand new jobs show 0/5, not 0/0.
+    const minimumTargets = {
+      "Arrival": 5,
+      "Strip Down": 8,
+      "Non Workshop": 5,
+      "Build": 7,
+      "Dyno": 5,
+      "Packaging": 6
     };
 
-    const done = keys.filter(k => valueDone(job[k] ?? job.checks?.[k] ?? job.workflow?.[k])).length;
-    const total = keys.length;
+    const total = Math.max(minimumTargets[sectionName] || 5, values.length);
+    const done = Math.min(total, values.filter(valueCountsAsProgress).length);
     const percent = total ? Math.round((done / total) * 100) : 0;
 
     return { done, total, percent, label: `${done}/${total}` };
