@@ -2244,3 +2244,21 @@ details[open] > summary::after {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ================================
+   V21.1 — Real Progress + Section Memory Fix
+   ================================ */
+
+.progress-summary-card {
+  display: block;
+}
+
+.section-card:not(.open) .section-body,
+.section-card.collapsed .section-body {
+  display: none;
+}
+
+.section-card.open .section-body {
+  display: block;
+}

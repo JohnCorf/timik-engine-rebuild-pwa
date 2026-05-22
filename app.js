@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V21 Job Progress Summary + Clearer Status";
+  const APP_VERSION = "V21.1 Real Progress + Section Memory Fix";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -206,6 +206,41 @@
     }
   }
 
+
+  function sectionStorageKey(jobId) {
+    return `timik-open-sections-${jobId || "new"}`;
+  }
+
+  function saveOpenSectionsForCurrentJob() {
+    try {
+      const job = currentJob();
+      if (!job) return;
+      job.openSections = Array.isArray(ui.openSections) ? [...ui.openSections] : [];
+      localStorage.setItem(sectionStorageKey(job.id), JSON.stringify(job.openSections));
+    } catch (err) {
+      console.warn("Could not save open sections", err);
+    }
+  }
+
+  function loadOpenSectionsForJob(job) {
+    try {
+      if (!job || !job.id) {
+        ui.openSections = [];
+        return;
+      }
+
+      if (Array.isArray(job.openSections)) {
+        ui.openSections = [...job.openSections];
+        return;
+      }
+
+      const saved = localStorage.getItem(sectionStorageKey(job.id));
+      ui.openSections = saved ? JSON.parse(saved) : [];
+    } catch (err) {
+      ui.openSections = [];
+    }
+  }
+
   function currentJob() {
     return state.jobs.find(j => j.id === ui.currentJobId) || state.jobs[0];
   }
@@ -337,8 +372,13 @@ function loadOpenSectionsForJob(job) {
 }
 
 function toggleSection(name) {
-    if (ui.openSections.includes(name)) ui.openSections = ui.openSections.filter(x => x !== name);
-    else ui.openSections.push(name);
+    if (ui.openSections.includes(name)) {
+      ui.openSections = ui.openSections.filter(s => s !== name);
+    } else {
+      ui.openSections = [...ui.openSections, name];
+    }
+    saveOpenSectionsForCurrentJob();
+    persist();
     render();
   }
 
@@ -924,6 +964,7 @@ function toggleSection(name) {
         <button class="secondary-btn" onclick="TIMIK.newJob()">+ New Job</button>
       </div>
       ${renderJobTimer(j)}
+      ${renderJobProgressSummary(j)}
       <div class="job-meta">
         <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>

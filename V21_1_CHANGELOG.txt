@@ -1,0 +1,36 @@
+TIMIK Engine Rebuild Record — V21.1 Real Progress + Section Memory Fix
+
+Base:
+- Built from the user's latest uploaded ZIP: timik-engine-rebuild-pwa(6).zip
+
+Fixed:
+1. Job Progress Summary
+- The existing progress summary is now actually rendered on the Engine Job page, directly under the Job Timer.
+
+2. Section open/close memory
+- New jobs start with all workflow sections collapsed.
+- Opening/closing sections now saves against the current job.
+- Reopening the job restores the same expanded/collapsed sections where possible.
+
+3. Packaging cleanup
+- .git folder excluded from this ZIP.
+- Service worker cache updated to V21.1.
+- Removed incorrect service-worker status-option leftovers if present.
+
+Not intentionally changed:
+- Password protection
+- Photos
+- Timer
+- Timer-to-diary/report integration
+- Parts
+- Saved Jobs
+- Daily Diary
+- Weekly Report
+- Settings
+- Customer database
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+
