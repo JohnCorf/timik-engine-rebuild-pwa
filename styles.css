@@ -2089,3 +2089,158 @@ details[open] > summary::after {
 .danger-btn:hover {
   background: #fff1f1 !important;
 }
+
+
+/* ================================
+   V21 — Job Progress Summary + Clearer Status
+   ================================ */
+
+.progress-summary-card {
+  border: 1px solid #c9d8ea;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  margin: 14px 0 18px;
+  box-shadow: 0 2px 10px rgba(15, 45, 75, 0.06);
+}
+
+.progress-summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.progress-summary-top h3 {
+  margin: 0;
+  color: #001f3f;
+  font-size: 18px;
+}
+
+.progress-summary-top p {
+  margin: 4px 0 0;
+  color: #51657c;
+  font-size: 13px;
+}
+
+.progress-total-pill {
+  background: #eef6ff;
+  border: 1px solid #c9d8ea;
+  color: #0b5fa5;
+  border-radius: 16px;
+  padding: 9px 12px;
+  text-align: right;
+  min-width: 110px;
+}
+
+.progress-total-pill strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.progress-total-pill span {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #51657c;
+  font-weight: 700;
+}
+
+.job-status-strip {
+  border: 1px solid #d8e3ef;
+  background: #f8fbff;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+
+.job-status-strip label {
+  display: block;
+  font-weight: 900;
+  color: #17324d;
+  margin-bottom: 8px;
+}
+
+.overall-progress-bar,
+.workflow-progress-mini {
+  background: #e8eef6;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.overall-progress-bar {
+  height: 12px;
+  margin-bottom: 14px;
+}
+
+.overall-progress-bar > div,
+.workflow-progress-mini > div {
+  height: 100%;
+  background: #0b5fa5;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.workflow-progress-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.workflow-progress-item {
+  border: 1px solid #d8e3ef;
+  background: #fbfdff;
+  border-radius: 14px;
+  padding: 10px;
+}
+
+.workflow-progress-item.started {
+  border-color: #b9d3f0;
+  background: #f4f9ff;
+}
+
+.workflow-progress-item.complete {
+  border-color: #98d2b3;
+  background: #f4fff8;
+}
+
+.workflow-progress-name {
+  font-weight: 900;
+  color: #17324d;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.workflow-progress-mini {
+  height: 8px;
+  margin-bottom: 7px;
+}
+
+.workflow-progress-count {
+  color: #51657c;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+@media (max-width: 800px) {
+  .workflow-progress-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .progress-summary-top {
+    display: block;
+  }
+
+  .progress-total-pill {
+    text-align: left;
+    margin-top: 10px;
+  }
+
+  .workflow-progress-grid {
+    grid-template-columns: 1fr;
+  }
+}

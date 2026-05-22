@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V20 Timer Integration";
+  const APP_VERSION = "V21 Job Progress Summary + Clearer Status";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -787,6 +787,132 @@ function toggleSection(name) {
     persist();
     showToast("Timer entry updated");
     render();
+  }
+
+
+
+  function workflowSectionProgress(job, sectionName) {
+    if (!job) return { done: 0, total: 0, percent: 0, label: "0/0" };
+
+    const sectionChecks = {
+      "Arrival": [
+        "arrivalPhotosTaken",
+        "serialNumberPhotoTaken",
+        "jobNumberAssigned",
+        "engineLogged",
+        "engineStored"
+      ],
+      "Strip Down": [
+        "powerWashed",
+        "photosTaken",
+        "engineStripped",
+        "partsWashed",
+        "partsTagged"
+      ],
+      "Non Workshop": [
+        "blockMachining",
+        "crankGrinding",
+        "headReman",
+        "turboReman",
+        "starterAlternator"
+      ],
+      "Build": [
+        "workspaceCleaned",
+        "blockCleaned",
+        "partsPrepared",
+        "engineAssembled",
+        "oilFilled"
+      ],
+      "Dyno": [
+        "coldStart",
+        "hotStart",
+        "oilPressure",
+        "leakCheck",
+        "fullLoadTest"
+      ],
+      "Packaging": [
+        "painted",
+        "heatTabsFitted",
+        "bungsFitted",
+        "wrapped",
+        "palletised",
+        "shippingLabel"
+      ]
+    };
+
+    const keys = sectionChecks[sectionName] || [];
+    if (!keys.length) return { done: 0, total: 0, percent: 0, label: "0/0" };
+
+    const valueDone = (value) => {
+      if (value === true) return true;
+      if (typeof value !== "string") return false;
+      const v = value.toLowerCase();
+      return ["complete", "completed", "done", "pass", "passed", "returned", "not required"].includes(v);
+    };
+
+    const done = keys.filter(k => valueDone(job[k] ?? job.checks?.[k] ?? job.workflow?.[k])).length;
+    const total = keys.length;
+    const percent = total ? Math.round((done / total) * 100) : 0;
+
+    return { done, total, percent, label: `${done}/${total}` };
+  }
+
+  function overallWorkflowProgress(job) {
+    const sections = ["Arrival", "Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"];
+    const totals = sections.map(s => workflowSectionProgress(job, s));
+    const done = totals.reduce((sum, item) => sum + item.done, 0);
+    const total = totals.reduce((sum, item) => sum + item.total, 0);
+    const percent = total ? Math.round((done / total) * 100) : 0;
+    return { done, total, percent };
+  }
+
+  function renderJobProgressSummary(job) {
+    const sections = ["Arrival", "Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"];
+    const overall = overallWorkflowProgress(job);
+    const status = job.status || job.currentStatus || "In Progress";
+
+    return `
+      <section class="progress-summary-card no-print">
+        <div class="progress-summary-top">
+          <div>
+            <h3>Job Progress</h3>
+            <p>Quick view of where this engine is in the rebuild workflow.</p>
+          </div>
+          <div class="progress-total-pill">
+            <strong>${overall.percent}%</strong>
+            <span>${overall.done}/${overall.total} checks</span>
+          </div>
+        </div>
+
+        <div class="job-status-strip">
+          <label>Current Status</label>
+          <select class="ui-input" onchange="TIMIK.updateJobField('status', this.value)">
+            ${["In Progress", "Waiting Parts", "Waiting Machining", "Ready For Dyno", "Ready To Ship", "Complete"].map(s => `
+              <option value="${s}" ${status === s ? "selected" : ""}>${s}</option>
+            `).join("")}
+          </select>
+        </div>
+
+        <div class="overall-progress-bar">
+          <div style="width:${overall.percent}%"></div>
+        </div>
+
+        <div class="workflow-progress-grid">
+          ${sections.map(section => {
+            const p = workflowSectionProgress(job, section);
+            return `
+              <div class="workflow-progress-item ${p.percent === 100 ? "complete" : p.percent > 0 ? "started" : ""}">
+                <div class="workflow-progress-name">${section}</div>
+                <div class="workflow-progress-mini">
+                  <div style="width:${p.percent}%"></div>
+                </div>
+                <div class="workflow-progress-count">${p.label}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </section>
+    `;
   }
 
 

@@ -1,0 +1,28 @@
+TIMIK Engine Rebuild Record — V21 Job Progress Summary + Clearer Status
+
+Base:
+- Built from V20 Timer Integration.
+
+Added:
+- Job Progress summary card on the Engine Job page.
+- Overall completion percentage.
+- Visual progress bar.
+- Stage progress indicators for:
+  Arrival, Strip Down, Non Workshop, Build, Dyno and Packaging.
+- Clear Current Status dropdown:
+  In Progress, Waiting Parts, Waiting Machining, Ready For Dyno, Ready To Ship, Complete.
+
+Not changed:
+- Password protection
+- Photo uploads
+- Existing job workflow sections
+- Timer integration
+- Parts section
+- Saved Jobs
+- Daily Diary
+- Weekly Report
+- Settings
+- Customer database
+
+app.js syntax check: PASS
+
