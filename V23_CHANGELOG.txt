@@ -1,0 +1,31 @@
+TIMIK Engine Rebuild Record — V23 Editable Job Numbers
+
+Base:
+- Built from the user's latest uploaded ZIP: timik-engine-rebuild-pwa(7).zip
+
+Added:
+- Editable Job Number card on the Engine Job page.
+- Job number remains auto-generated, but can now be manually overwritten.
+- Manual job number saves to the current job as job.jobNo.
+- Updated job number is used by the existing app anywhere job.jobNo is displayed.
+- Added updateJobNumber and updateJobNumberLive handlers.
+
+Not intentionally changed:
+- Password protection
+- Photos
+- Job timer
+- Timer-to-diary/report integration
+- Progress bars
+- Accordion section behaviour
+- Parts
+- Saved Jobs
+- Daily Diary
+- Weekly Report
+- Settings
+- Customer database
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+

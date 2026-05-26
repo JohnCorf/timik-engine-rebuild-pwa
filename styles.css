@@ -2303,3 +2303,53 @@ details[open] > summary::after {
     display: none;
   }
 }
+
+
+/* ================================
+   V23 — Editable Job Numbers
+   ================================ */
+
+.job-number-card {
+  border: 1px solid #c9d8ea;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  margin: 14px 0 18px;
+  box-shadow: 0 2px 10px rgba(15, 45, 75, 0.06);
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 340px);
+  gap: 14px;
+  align-items: center;
+}
+
+.job-number-card label {
+  display: block;
+  color: #001f3f;
+  font-weight: 900;
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.job-number-card p {
+  margin: 0;
+  color: #51657c;
+  font-size: 13px;
+}
+
+.job-number-input {
+  font-size: 18px !important;
+  font-weight: 900 !important;
+  color: #001f3f !important;
+  text-align: center;
+  letter-spacing: 0.3px;
+}
+
+@media (max-width: 700px) {
+  .job-number-card {
+    grid-template-columns: 1fr;
+  }
+
+  .job-number-input {
+    text-align: left;
+  }
+}

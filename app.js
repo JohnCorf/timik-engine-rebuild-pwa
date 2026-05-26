@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V22 Working Progress + Accordion Sections";
+  const APP_VERSION = "V23 Editable Job Numbers";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -967,6 +967,45 @@ function toggleSection(name) {
   }
 
 
+
+  function renderEditableJobNumber(job) {
+    return `
+      <section class="job-number-card no-print">
+        <div>
+          <label for="editable-job-number">Job Number</label>
+          <p>Auto-generated, but can be manually changed to match TIMIK paperwork.</p>
+        </div>
+        <input
+          id="editable-job-number"
+          class="ui-input job-number-input"
+          type="text"
+          value="${moneySafe(job.jobNo || "")}"
+          placeholder="Enter job number"
+          onchange="TIMIK.updateJobNumber(this.value)"
+          oninput="TIMIK.updateJobNumberLive(this.value)"
+        />
+      </section>
+    `;
+  }
+
+  function updateJobNumberLive(value) {
+    const job = currentJob();
+    if (!job) return;
+    job.jobNo = value;
+  }
+
+  function updateJobNumber(value) {
+    const job = currentJob();
+    if (!job) return;
+    const clean = String(value || "").trim();
+    job.jobNo = clean || job.jobNo || `TIMIK-${Date.now()}`;
+    job.updatedAt = todayISO();
+    persist();
+    showToast("Job number updated");
+    render();
+  }
+
+
   function renderEngine() {
     const j = currentJob();
     const content = `${renderHero()}
@@ -976,6 +1015,7 @@ function toggleSection(name) {
       </div>
       ${renderJobTimer(j)}
       ${renderJobProgressSummary(j)}
+      ${renderEditableJobNumber(j)}
       <div class="job-meta">
         <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>
@@ -1714,7 +1754,7 @@ function toggleSection(name) {
   }
 
   window.TIMIK = {
-    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, startJobTimer, stopJobTimer, editTimeEntry, deleteTimeEntry, setBooleanCheck, setCheck, setStage,
+    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, updateJobNumber, updateJobNumberLive, startJobTimer, stopJobTimer, editTimeEntry, deleteTimeEntry, setBooleanCheck, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, handleStagePhotos, removeStagePhoto, setLoginPassword, unlockApp, lockApp, updatePasswordEnabled, updatePassword, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
