@@ -1,0 +1,33 @@
+TIMIK Engine Rebuild Record — V24.1 Saved Jobs + Editable Job Number Repair
+
+Base:
+- Built from the V24 ZIP the user uploaded: timik-engine-rebuild-pwa(8).zip
+
+Repaired/added:
+- Restored editable job number card on Engine Job page.
+- Kept/added professional Saved Jobs cards.
+- Search bar on Saved Jobs.
+- Filters: Active, Waiting, Complete, All.
+- Status colour pills.
+- Progress percentage and progress bar.
+- Total timer hours.
+- Duplicate job button.
+- Cache updated to V24.1.
+
+Preserved:
+- Password protection.
+- Photos.
+- Timer and timer-to-diary/report integration.
+- Accordion sections.
+- Progress summary.
+- Parts.
+- Daily Diary.
+- Weekly Report.
+- Settings.
+- Customer database.
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+

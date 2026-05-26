@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V24 Saved Jobs Professionalisation";
+  const APP_VERSION = "V24.1 Saved Jobs + Editable Job Number Repair";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -967,6 +967,45 @@ function toggleSection(name) {
   }
 
 
+
+  function renderEditableJobNumber(job) {
+    return `
+      <section class="job-number-card no-print">
+        <div>
+          <label for="editable-job-number">Job Number</label>
+          <p>Auto-generated, but can be manually changed to match TIMIK paperwork.</p>
+        </div>
+        <input
+          id="editable-job-number"
+          class="ui-input job-number-input"
+          type="text"
+          value="${moneySafe(job.jobNo || "")}"
+          placeholder="Enter job number"
+          onchange="TIMIK.updateJobNumber(this.value)"
+          oninput="TIMIK.updateJobNumberLive(this.value)"
+        />
+      </section>
+    `;
+  }
+
+  function updateJobNumberLive(value) {
+    const job = currentJob();
+    if (!job) return;
+    job.jobNo = value;
+  }
+
+  function updateJobNumber(value) {
+    const job = currentJob();
+    if (!job) return;
+    const clean = String(value || "").trim();
+    job.jobNo = clean || job.jobNo || `TIMIK-${Date.now()}`;
+    job.updatedAt = todayISO();
+    persist();
+    showToast("Job number updated");
+    render();
+  }
+
+
   function renderEngine() {
     const j = currentJob();
     const content = `${renderHero()}
@@ -976,6 +1015,7 @@ function toggleSection(name) {
       </div>
       ${renderJobTimer(j)}
       ${renderJobProgressSummary(j)}
+      ${renderEditableJobNumber(j)}
       <div class="job-meta">
         <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>
@@ -1741,7 +1781,7 @@ function renderSettings() {
   }
 
   window.TIMIK = {
-    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, startJobTimer, stopJobTimer, editTimeEntry, deleteTimeEntry, setBooleanCheck, setCheck, setStage,
+    setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, startJobTimer, stopJobTimer, editTimeEntry, deleteTimeEntry, updateJobNumber, updateJobNumberLive, updateSavedJobsSearch, setSavedJobsFilter, setBooleanCheck, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, handleStagePhotos, removeStagePhoto, setLoginPassword, unlockApp, lockApp, updatePasswordEnabled, updatePassword, setDiaryDraft, addDiaryEntry, deleteDiary,
     changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
@@ -1938,3 +1978,29 @@ window.removeTimikPart = function(job, partId) {
   window.TIMIK_V17_applyWorkflowState = applyWorkflowState;
   window.TIMIK_V17_saveWorkflowState = saveWorkflowState;
 })();
+
+
+  function totalJobHours(job) {
+    return Math.round(((job.timeEntries || []).reduce((sum, e) => sum + (Number(e.hours) || 0), 0)) * 100) / 100;
+  }
+
+  function savedJobProgress(job) {
+    try {
+      const p = overallWorkflowProgress(job);
+      return p.percent || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function savedJobStatusClass(status) {
+    return {
+      "In Progress": "saved-status-blue",
+      "Waiting Parts": "saved-status-amber",
+      "Waiting Machining": "saved-status-orange",
+      "Ready For Dyno": "saved-status-purple",
+      "Ready To Ship": "saved-status-teal",
+      "Complete": "saved-status-green"
+    }[status] || "saved-status-blue";
+  }
+
