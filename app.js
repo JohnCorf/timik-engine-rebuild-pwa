@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V26 Arrival Intake + Clean Reports";
+  const APP_VERSION = "V27 Workflow Cleanup + Intake Separation";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -288,7 +288,7 @@
     state.currentJobId = job.id;
   loadOpenSectionsForJob((state.jobs || []).find(j => j.id === state.currentJobId));
     ui.currentJobId = job.id;
-    ui.tab = "engine";
+    ui.tab = "intake";
     ui.openSections = [];
     persist();
     showToast("New engine job created");
@@ -442,7 +442,8 @@ function toggleSection(name) {
 
   function renderShell(content) {
     const titles = {
-      engine: "Engine Job",
+      intake: "Check-In / Intake",
+      engine: "Workshop Job",
       diary: "Daily Diary",
       report: "Weekly Report",
       saved: "Saved Jobs",
@@ -462,10 +463,11 @@ function toggleSection(name) {
       </header>
       <main class="content">${content}<div class="app-footer">Powered by SouthWorx • ${APP_VERSION}</div></main>
       <nav class="bottom-tabs no-print">
-        ${tabBtn("engine", "🔧", "Engine Job")}
-        ${tabBtn("diary", "🗓️", "Daily Diary")}
-        ${tabBtn("report", "📋", "Weekly Report")}
-        ${tabBtn("saved", "🗂️", "Saved Jobs")}
+        ${tabBtn("intake", "📥", "Check-In")}
+        ${tabBtn("engine", "🔧", "Workshop")}
+        ${tabBtn("diary", "🗓️", "Diary")}
+        ${tabBtn("report", "📋", "Reports")}
+        ${tabBtn("saved", "🗂️", "Jobs")}
         ${tabBtn("settings", "⚙️", "Settings")}
       </nav>
       <div class="toast ${ui.toast ? "show" : ""}">${moneySafe(ui.toast)}</div>
@@ -953,52 +955,97 @@ function toggleSection(name) {
     return reportRow(label, findJobValueByNames(job, names));
   }
 
-  function collectSectionProgressItems(job, sectionName) {
-    const values = deepCollectJobValues(job);
-
-    const sectionTerms = {
-      "Arrival": ["arrival", "serial", "logged", "stored", "received", "courier", "delivery"],
-      "Strip Down": ["strip", "bore", "crank", "head", "oil", "metal", "damage", "wash", "washed", "clean", "contamination"],
-      "Non Workshop": ["nonworkshop", "external", "machin", "block", "crank", "head", "turbo", "starter", "alternator", "ocs"],
-      "Build": ["build", "bearing", "clearance", "torque", "valve", "assembled", "oilfilled", "partsprepared", "workspace"],
-      "Dyno": ["dyno", "cold", "hot", "oilpressure", "leak", "load", "test"],
-      "Packaging": ["pack", "paint", "heat", "bung", "wrap", "pallet", "label", "shipping"]
-    };
-
-    const terms = sectionTerms[sectionName] || [];
-    const ignored = ["id", "jobno", "customer", "engineer", "createdat", "updatedat", "status"];
-
-    return values.filter(item => {
-      const path = normaliseKeyText(item.path);
-      const key = normaliseKeyText(item.key);
-      if (ignored.includes(key)) return false;
-      if (Array.isArray(item.value)) return false;
-      return terms.some(term => path.includes(normaliseKeyText(term)));
-    });
+  function mapValuesForProgress(mapObj) {
+    if (!mapObj || typeof mapObj !== "object") return [];
+    return Object.values(mapObj);
   }
 
+  function visibleSectionValues(job, sectionName) {
+    if (!job) return [];
+
+    if (sectionName === "Arrival") {
+      return [
+        ...mapValuesForProgress(job.arrivalTasks),
+        job.deliveryNotes,
+        job.arrivalNotes
+      ];
+    }
+
+    if (sectionName === "Strip Down") {
+      return [
+        ...mapValuesForProgress(job.stripProcess),
+        ...mapValuesForProgress(job.stripChecks),
+        job.stripNotes,
+        job.damageFindings,
+        job.cleaningNotes,
+        job.machiningRequiredNotes
+      ];
+    }
+
+    if (sectionName === "Non Workshop") {
+      return [
+        ...mapValuesForProgress(job.externalWork),
+        job.externalNotes,
+        job.officeNotes
+      ];
+    }
+
+    if (sectionName === "Build") {
+      return [
+        ...mapValuesForProgress(job.buildTasks),
+        job.bearingClearances,
+        job.torqueSettings,
+        job.valveClearances,
+        job.buildNotes,
+        ...(Array.isArray(job.measurements) ? job.measurements.map(m => [m.item, m.spec, m.actual].filter(Boolean).join(" ")) : [])
+      ];
+    }
+
+    if (sectionName === "Dyno") {
+      return [
+        ...mapValuesForProgress(job.dynoChecks),
+        job.coldOilPressure,
+        job.hotOilPressure,
+        job.maxRpm,
+        job.loadPercent,
+        job.fullLoadResults,
+        job.leakCheckNotes,
+        job.dynoNotes
+      ];
+    }
+
+    if (sectionName === "Packaging") {
+      return [
+        ...mapValuesForProgress(job.packagingTasks),
+        job.packagingNotes,
+        job.shippingNotes
+      ];
+    }
+
+    return [];
+  }
 
   function workflowSectionProgress(job, sectionName) {
-    const items = collectSectionProgressItems(job, sectionName);
+    const values = visibleSectionValues(job, sectionName);
 
     const minimumTargets = {
-      "Arrival": 5,
-      "Strip Down": 8,
-      "Non Workshop": 5,
-      "Build": 7,
-      "Dyno": 5,
-      "Packaging": 6
+      "Arrival": ARRIVAL_TASKS.length,
+      "Strip Down": STRIP_PROCESS_TASKS.length + STRIP_INSPECTIONS.length,
+      "Non Workshop": EXTERNAL_ITEMS.length,
+      "Build": BUILD_TASKS.length,
+      "Dyno": DYNO_INSPECTIONS.length,
+      "Packaging": PACKAGING_TASKS.length
     };
 
-    const total = Math.max(minimumTargets[sectionName] || 5, items.length);
-    const done = Math.min(total, items.filter(item => valueCountsForProgress(item.value)).length);
+    const total = Math.max(minimumTargets[sectionName] || 1, values.length || 1);
+    const done = Math.min(total, values.filter(valueCountsForProgress).length);
     const percent = total ? Math.round((done / total) * 100) : 0;
 
     return { done, total, percent, label: `${done}/${total}` };
   }
 
   function overallWorkflowProgress(job) {
-    const sections = ["Arrival", "Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"];
+    const sections = ["Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"];
     const totals = sections.map(s => workflowSectionProgress(job, s));
     const done = totals.reduce((sum, item) => sum + item.done, 0);
     const total = totals.reduce((sum, item) => sum + item.total, 0);
@@ -1007,7 +1054,7 @@ function toggleSection(name) {
   }
 
   function renderJobProgressSummary(job) {
-    const sections = ["Arrival", "Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"];
+    const sections = ["Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"];
     const overall = overallWorkflowProgress(job);
     const status = job.status || job.currentStatus || "In Progress";
 
@@ -1095,6 +1142,38 @@ function toggleSection(name) {
   }
 
 
+
+  function reportMapRows(mapObj) {
+    if (!mapObj || typeof mapObj !== "object") return "";
+    return Object.entries(mapObj).map(([label, value]) => reportRow(label, value)).join("");
+  }
+
+  function renderIntake() {
+    const j = currentJob();
+    const content = `${renderHero()}
+      <div class="engine-action-strip no-print">
+        <button class="primary-btn" onclick="TIMIK.saveCurrentJob()">Save Intake</button>
+        <button class="secondary-btn" onclick="TIMIK.newJob()">+ New Engine</button>
+      </div>
+
+      ${renderEditableJobNumber(j)}
+
+      <section class="intake-explainer-card">
+        <h3>Engine Check-In / Intake</h3>
+        <p>Use this screen when an engine first arrives. Record the customer, engine identity, arrival condition, serial number evidence and storage details. This can be printed or sent to the office before the rebuild work starts.</p>
+      </section>
+
+      ${section("Arrival", "📥", renderArrival(j))}
+
+      <section class="report-actions-card no-print">
+        <button class="primary-btn" onclick="TIMIK.printArrivalReport()">Print Intake Report</button>
+        <button class="ghost-btn" onclick="TIMIK.setTab('engine')">Continue to Workshop Job</button>
+      </section>
+    `;
+    renderShell(content);
+  }
+
+
   function renderEngine() {
     const j = currentJob();
     const content = `${renderHero()}
@@ -1105,22 +1184,11 @@ function toggleSection(name) {
       ${renderJobTimer(j)}
       ${renderJobProgressSummary(j)}
       ${renderEditableJobNumber(j)}
-      
-      <section class="report-actions-card no-print">
-        <button class="primary-btn" onclick="TIMIK.printArrivalReport()">
-          Print Arrival Intake Report
-        </button>
-
-        <button class="ghost-btn" onclick="TIMIK.printJob()">
-          Print Full Rebuild Report
-        </button>
-      </section>
 
       <div class="job-meta">
         <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>
       </div>
-      ${section("Arrival", "📥", renderArrival(j))}
       ${section("Strip Down", "🔍", renderStripDown(j))}
       ${section("Non Workshop", "🚚", renderNonWorkshop(j))}
       ${section("Build", "🔧", renderBuild(j))}
@@ -1129,7 +1197,7 @@ function toggleSection(name) {
       ${section("Parts", "🧰", renderParts(j))}
       ${section("Sign Off", "✍️", renderSignOff(j))}
       <div class="action-row no-print">
-        <button class="secondary-btn full-width" onclick="TIMIK.printJob()">Export / Print Job</button>
+        <button class="secondary-btn full-width" onclick="TIMIK.printJob()">Print Full Rebuild Report</button>
         <button class="ghost-btn full-width" onclick="TIMIK.emailJob()">Email Job Summary</button>
       </div>`;
     renderShell(content);
@@ -1453,6 +1521,7 @@ function renderSettings() {
 
   function render() {
     if (isLocked()) return renderLogin();
+    if (ui.tab === "intake") return renderIntake();
     if (ui.tab === "engine") return renderEngine();
     if (ui.tab === "diary") return renderDiary();
     if (ui.tab === "report") return renderReport();
@@ -2059,13 +2128,9 @@ function renderSettings() {
 
           <table class="print-table">
             <tbody>
-              ${renderReportValueFromNames(job, "Engine Received", ["received", "arrival"])}
-              ${renderReportValueFromNames(job, "Photos Taken", ["photosTaken", "arrivalPhotosTaken"])}
-              ${renderReportValueFromNames(job, "Serial Confirmed", ["serialConfirmed", "serial"])}
-              ${renderReportValueFromNames(job, "Engine Logged", ["engineLogged", "logged"])}
-              ${renderReportValueFromNames(job, "Engine Stored", ["engineStored", "stored"])}
-              ${renderReportValueFromNames(job, "Courier / Delivery Notes", ["deliveryNotes", "courierNotes"])}
-              ${renderReportValueFromNames(job, "Arrival Notes", ["arrivalNotes"])}
+              ${reportMapRows(job.arrivalTasks)}
+              ${reportRow("Courier / Delivery Notes", job.deliveryNotes)}
+              ${reportRow("Arrival Notes", job.arrivalNotes)}
             </tbody>
           </table>
         </section>
@@ -2132,7 +2197,7 @@ function printJobReport() {
     const job = currentJob();
     if (!job) return;
 
-    const reportHtml = renderProfessionalJobReport(job);
+    const reportHtml = renderCleanRebuildReport(job);
     const win = window.open("", "_blank");
     if (!win) {
       showToast("Popup blocked. Please allow popups to print the report.");
@@ -2503,4 +2568,191 @@ window.removeTimikPart = function(job, partId) {
       "Complete": "saved-status-green"
     }[status] || "saved-status-blue";
   }
+
+  function renderCleanRebuildReport(job) {
+    const progress = typeof overallWorkflowProgress === "function" ? overallWorkflowProgress(job) : { percent: 0, done: 0, total: 0 };
+    const parts = job.parts || [];
+    const timers = job.timeEntries || [];
+
+    const workflowSummary = ["Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"].map(section => {
+      let p = { percent: 0, done: 0, total: 0 };
+      try { p = workflowSectionProgress(job, section); } catch (e) {}
+      return `
+        <div class="print-progress-item">
+          <span>${section}</span>
+          <strong>${p.percent || 0}%</strong>
+          <div class="print-progress-bar"><div style="width:${p.percent || 0}%"></div></div>
+        </div>
+      `;
+    }).join("");
+
+    const partsHtml = parts.length ? `
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th>Part Number</th>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Type</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${parts.map(p => `
+            <tr>
+              <td>${cleanReportValue(partValue(p, ["partNo", "partNumber", "number", "partNo", "code", "sku"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["description", "name", "partDescription", "desc"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["qty", "quantity", "amount"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["type", "status", "partType"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["notes", "note", "comment"]), "")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="print-muted">No parts recorded.</p>`;
+
+    const timersHtml = timers.length ? `
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Engineer</th>
+            <th>Hours</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${timers.map(t => `
+            <tr>
+              <td>${cleanReportValue(t.date, "")}</td>
+              <td>${cleanReportValue(t.engineer, "")}</td>
+              <td>${cleanReportValue(t.hours, "")}</td>
+              <td>${cleanReportValue(t.note, "")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="print-muted">No timer entries recorded.</p>`;
+
+    const measurementsHtml = (job.measurements || []).length ? `
+      <table class="print-table">
+        <thead><tr><th>Item</th><th>Specification</th><th>Actual</th></tr></thead>
+        <tbody>
+          ${job.measurements.map(m => `<tr><td>${cleanReportValue(m.item, "")}</td><td>${cleanReportValue(m.spec, "")}</td><td>${cleanReportValue(m.actual, "")}</td></tr>`).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="print-muted">No measurements recorded.</p>`;
+
+    return `
+      <div class="print-report">
+        <header class="print-report-header">
+          <div>
+            <div class="print-brand">TIMIK Agriculture</div>
+            <h1>Engine Rebuild Report</h1>
+            <p>Workshop rebuild record</p>
+          </div>
+          <div class="print-job-box">
+            <span>Job Number</span>
+            <strong>${cleanReportValue(job.jobNo, "No Job Number")}</strong>
+          </div>
+        </header>
+
+        <section class="print-summary-grid">
+          <div><span>Customer</span><strong>${cleanReportValue(job.customer)}</strong></div>
+          <div><span>Engine</span><strong>${cleanReportValue([job.engineMake, job.engineModel].filter(Boolean).join(" "))}</strong></div>
+          <div><span>Serial Number</span><strong>${cleanReportValue(job.engineSerial)}</strong></div>
+          <div><span>Status</span><strong>${cleanReportValue(job.status || "In Progress")}</strong></div>
+          <div><span>Workshop Progress</span><strong>${progress.percent || 0}%</strong></div>
+          <div><span>Total Hours</span><strong>${jobTotalHours(job).toFixed(2)} hrs</strong></div>
+        </section>
+
+        <section class="print-section">
+          <h2>Workshop Progress</h2>
+          <div class="print-progress-grid">${workflowSummary}</div>
+        </section>
+
+        ${renderReportSection("Engine Reference", [
+          reportRow("Customer", job.customer),
+          reportRow("Contact", job.contact),
+          reportRow("Phone", job.phone),
+          reportRow("Email", job.email),
+          reportRow("Engine Make", job.engineMake),
+          reportRow("Engine Model", job.engineModel),
+          reportRow("Engine Serial", job.engineSerial),
+          reportRow("Build Reference", job.buildRef),
+          reportRow("Engineer", job.engineer)
+        ].join(""))}
+
+        ${renderReportSection("Strip Down", [
+          reportMapRows(job.stripProcess),
+          reportMapRows(job.stripChecks),
+          reportRow("Strip Notes", job.stripNotes),
+          reportRow("Damage Findings", job.damageFindings),
+          reportRow("Cleaning Notes", job.cleaningNotes),
+          reportRow("Machining Required Notes", job.machiningRequiredNotes)
+        ].join(""))}
+
+        ${renderReportSection("Non Workshop", [
+          reportMapRows(job.externalWork),
+          reportRow("External Work Notes", job.externalNotes),
+          reportRow("Office / Paperwork Notes", job.officeNotes)
+        ].join(""))}
+
+        ${renderReportSection("Build", [
+          reportMapRows(job.buildTasks),
+          reportRow("Bearing Clearances", job.bearingClearances),
+          reportRow("Torque Settings", job.torqueSettings),
+          reportRow("Valve Clearances", job.valveClearances),
+          reportRow("Build Notes", job.buildNotes)
+        ].join(""))}
+
+        <section class="print-section">
+          <h2>Measurements</h2>
+          ${measurementsHtml}
+        </section>
+
+        ${renderReportSection("Dyno", [
+          reportMapRows(job.dynoChecks),
+          reportRow("Cold Oil Pressure", job.coldOilPressure),
+          reportRow("Hot Oil Pressure", job.hotOilPressure),
+          reportRow("Max RPM", job.maxRpm),
+          reportRow("Load %", job.loadPercent),
+          reportRow("Full Load Results", job.fullLoadResults),
+          reportRow("Leak Check Notes", job.leakCheckNotes),
+          reportRow("Dyno Notes", job.dynoNotes)
+        ].join(""))}
+
+        ${renderReportSection("Packaging", [
+          reportMapRows(job.packagingTasks),
+          reportRow("Packaging Notes", job.packagingNotes),
+          reportRow("Shipping Notes", job.shippingNotes)
+        ].join(""))}
+
+        <section class="print-section">
+          <h2>Parts Used / Required</h2>
+          ${partsHtml}
+        </section>
+
+        <section class="print-section">
+          <h2>Time Recorded</h2>
+          ${timersHtml}
+        </section>
+
+        ${renderReportSection("Sign Off", [
+          reportRow("Sign-Off Engineer", job.signOffEngineer || job.engineer),
+          reportRow("Sign-Off Date", job.signOffDate),
+          reportRow("Warranty Notes", job.warrantyNotes),
+          reportRow("Customer Notes", job.customerNotes),
+          reportRow("Final Notes", job.finalNotes)
+        ].join(""))}
+
+        <footer class="print-report-footer">
+          <span>TIMIK Agriculture Engine Rebuild Report</span>
+          <span>Powered by SouthWorx</span>
+        </footer>
+      </div>
+    `;
+  }
+
+
 

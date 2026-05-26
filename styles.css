@@ -2842,3 +2842,43 @@ details[open] > summary::after {
     width:100%;
   }
 }
+
+/* V27 Workflow Cleanup + Intake Separation */
+
+.intake-explainer-card {
+  border: 1px solid #c9d8ea;
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 16px;
+  margin: 14px 0 18px;
+  box-shadow: 0 2px 10px rgba(15,45,75,.05);
+}
+
+.intake-explainer-card h3 {
+  margin: 0 0 6px;
+  color: #001f3f;
+}
+
+.intake-explainer-card p {
+  margin: 0;
+  color: #51657c;
+  line-height: 1.45;
+}
+
+.bottom-tabs {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.bottom-tabs .tab-btn {
+  min-width: 0;
+}
+
+@media (max-width: 520px) {
+  .bottom-tabs .tab-btn span:last-child {
+    font-size: 10px;
+  }
+
+  .bottom-tabs .tab-icon {
+    font-size: 18px;
+  }
+}

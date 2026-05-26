@@ -1,0 +1,44 @@
+TIMIK Engine Rebuild Record — V27 Workflow Cleanup + Intake Separation
+
+Base:
+- Built from the current build supplied by the user: timik-engine-rebuild-pwa(9).zip
+
+Changed:
+1. Added Check-In / Intake tab
+- Arrival is now handled in its own bottom tab.
+- Intake tab is for receiving the engine, recording customer/engine details, serial details, photos, delivery notes and storage/logging actions.
+- Intake tab has a dedicated Print Intake Report button.
+
+2. Cleaned Workshop Job structure
+- Workshop Job now starts from Strip Down.
+- Arrival no longer appears inside the Workshop Job workflow.
+- Workshop Job keeps Strip Down, Non Workshop, Build, Dyno, Packaging, Parts and Sign Off.
+
+3. Cleaner exports
+- Intake Report is separate.
+- Full Rebuild Report now uses only the visible workflow maps/sections.
+- Removed broad hidden/orphaned field harvesting from the main rebuild report.
+- Packaging report now uses visible packaging task labels, not hidden legacy fields.
+
+4. Cleaner progress
+- Workshop progress excludes Arrival.
+- Progress now uses visible workflow maps:
+  stripProcess, stripChecks, externalWork, buildTasks, dynoChecks and packagingTasks.
+
+Preserved:
+- Editable job number.
+- Saved Jobs professional page.
+- Password protection.
+- Photos.
+- Timer and timer-to-diary/report integration.
+- Accordion sections.
+- Daily Diary.
+- Weekly Report.
+- Settings.
+- Customer database.
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+
