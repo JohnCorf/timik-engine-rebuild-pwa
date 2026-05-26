@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V25.1 Report Data + Progress Fix";
+  const APP_VERSION = "V26 Arrival Intake + Clean Reports";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -1105,6 +1105,17 @@ function toggleSection(name) {
       ${renderJobTimer(j)}
       ${renderJobProgressSummary(j)}
       ${renderEditableJobNumber(j)}
+      
+      <section class="report-actions-card no-print">
+        <button class="primary-btn" onclick="TIMIK.printArrivalReport()">
+          Print Arrival Intake Report
+        </button>
+
+        <button class="ghost-btn" onclick="TIMIK.printJob()">
+          Print Full Rebuild Report
+        </button>
+      </section>
+
       <div class="job-meta">
         <div><strong>Job: ${moneySafe(j.jobNo)}</strong><div class="help">Updated: ${fmtDate(j.updatedAt)}</div></div>
         <span class="status-badge ${statusClass(j.status)}">${moneySafe(j.status)}</span>
@@ -1968,32 +1979,6 @@ function renderSettings() {
           renderReportValueFromNames(job, "Shipping Notes", ["shippingNotes", "shipping"])
         ].join(""))}
 
-        
-        <section class="print-section">
-          <h2>Recorded Workflow Choices</h2>
-          <table class="print-table">
-            <thead>
-              <tr>
-                <th>Field</th>
-                <th>Recorded Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${deepCollectJobValues(job)
-                .filter(item => item.value !== undefined && item.value !== null && String(item.value).trim() !== "")
-                .filter(item => !["id", "jobNo", "createdAt", "updatedAt"].includes(item.key))
-                .filter(item => !Array.isArray(item.value))
-                .slice(0, 120)
-                .map(item => `
-                  <tr>
-                    <td>${moneySafe(item.path)}</td>
-                    <td>${moneySafe(String(item.value))}</td>
-                  </tr>
-                `).join("")}
-            </tbody>
-          </table>
-        </section>
-
 
         <section class="print-section">
           <h2>Parts Used / Required</h2>
@@ -2020,7 +2005,130 @@ function renderSettings() {
     `;
   }
 
-  function printJobReport() {
+  
+  function renderArrivalIntakeReport(job) {
+    return `
+      <div class="print-report intake-report">
+        <header class="print-report-header">
+          <div>
+            <div class="print-brand">TIMIK Agriculture</div>
+            <h1>Engine Arrival / Intake Report</h1>
+            <p>Initial engine intake and workshop reference record</p>
+          </div>
+
+          <div class="print-job-box">
+            <span>Job Number</span>
+            <strong>${cleanReportValue(job.jobNo, "No Job Number")}</strong>
+          </div>
+        </header>
+
+        <section class="print-summary-grid">
+          <div>
+            <span>Customer</span>
+            <strong>${cleanReportValue(job.customer)}</strong>
+          </div>
+
+          <div>
+            <span>Engine</span>
+            <strong>${cleanReportValue([job.engineMake, job.engineModel].filter(Boolean).join(" "))}</strong>
+          </div>
+
+          <div>
+            <span>Serial Number</span>
+            <strong>${cleanReportValue(job.engineSerial)}</strong>
+          </div>
+
+          <div>
+            <span>Engineer</span>
+            <strong>${cleanReportValue(job.engineer)}</strong>
+          </div>
+
+          <div>
+            <span>Status</span>
+            <strong>${cleanReportValue(job.status || "Arrival")}</strong>
+          </div>
+
+          <div>
+            <span>Date Created</span>
+            <strong>${cleanReportValue(job.createdAt)}</strong>
+          </div>
+        </section>
+
+        <section class="print-section">
+          <h2>Arrival Intake Information</h2>
+
+          <table class="print-table">
+            <tbody>
+              ${renderReportValueFromNames(job, "Engine Received", ["received", "arrival"])}
+              ${renderReportValueFromNames(job, "Photos Taken", ["photosTaken", "arrivalPhotosTaken"])}
+              ${renderReportValueFromNames(job, "Serial Confirmed", ["serialConfirmed", "serial"])}
+              ${renderReportValueFromNames(job, "Engine Logged", ["engineLogged", "logged"])}
+              ${renderReportValueFromNames(job, "Engine Stored", ["engineStored", "stored"])}
+              ${renderReportValueFromNames(job, "Courier / Delivery Notes", ["deliveryNotes", "courierNotes"])}
+              ${renderReportValueFromNames(job, "Arrival Notes", ["arrivalNotes"])}
+            </tbody>
+          </table>
+        </section>
+
+        <section class="print-section">
+          <h2>Initial Condition Notes</h2>
+
+          <table class="print-table">
+            <tbody>
+              ${renderReportValueFromNames(job, "Oil Condition", ["oilCondition"])}
+              ${renderReportValueFromNames(job, "External Damage", ["damage", "externalDamage"])}
+              ${renderReportValueFromNames(job, "Contamination", ["contamination", "metalContamination"])}
+              ${renderReportValueFromNames(job, "Additional Notes", ["notes", "arrivalNotes"])}
+            </tbody>
+          </table>
+        </section>
+
+        <footer class="print-report-footer">
+          <span>TIMIK Agriculture Engine Intake Report</span>
+          <span>Powered by SouthWorx</span>
+        </footer>
+      </div>
+    `;
+  }
+
+  function printArrivalReport() {
+    const job = currentJob();
+    if (!job) return;
+
+    const reportHtml = renderArrivalIntakeReport(job);
+
+    const win = window.open("", "_blank");
+    if (!win) {
+      showToast("Popup blocked. Please allow popups to print the report.");
+      return;
+    }
+
+    win.document.open();
+    win.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Arrival Report - ${moneySafe(job.jobNo || "Engine")}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>${document.querySelector("style")?.innerHTML || ""}</style>
+          <link rel="stylesheet" href="styles.css" />
+        </head>
+        <body class="print-body">
+          ${reportHtml}
+          <script>
+            window.addEventListener('load', () => {
+              setTimeout(() => window.print(), 300);
+            });
+          </script>
+        </body>
+      </html>
+    `);
+
+    win.document.close();
+  }
+
+
+function printJobReport() {
     const job = currentJob();
     if (!job) return;
 
@@ -2176,7 +2284,7 @@ function printJob() {
     setTab, newJob, saveCurrentJob, toggleSection, updateJob, updateJobField, startJobTimer, stopJobTimer, editTimeEntry, deleteTimeEntry, updateJobNumber, updateJobNumberLive, updateSavedJobsSearch, setSavedJobsFilter, setBooleanCheck, setCheck, setStage,
     setPartDraft, addPart, removePart, setMeasurementDraft, addMeasurement, removeMeasurement,
     handlePhotos, removePhoto, handleStagePhotos, removeStagePhoto, setLoginPassword, unlockApp, lockApp, updatePasswordEnabled, updatePassword, setDiaryDraft, addDiaryEntry, deleteDiary,
-    changeWeek, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
+    changeWeek, printArrivalReport, printJob, emailJob, printWeeklyReport, emailWeeklyReport,
     setSavedSearch, setSavedFilter, openJob, duplicateJob, deleteJob,
     exportData, importData, updateSetting, refreshApp, clearAllData
   };

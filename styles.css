@@ -2810,3 +2810,35 @@ details[open] > summary::after {
     grid-template-columns: 1fr;
   }
 }
+
+/* V26 Arrival Intake + Clean Reports */
+
+.report-actions-card {
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin:14px 0 18px;
+  padding:14px;
+  border:1px solid #dbe5ef;
+  border-radius:18px;
+  background:#ffffff;
+  box-shadow:0 2px 10px rgba(15,45,75,.05);
+}
+
+.intake-report .print-summary-grid {
+  margin-bottom:18px;
+}
+
+.intake-report .print-section h2 {
+  color:#0b5fa5;
+}
+
+@media (max-width:700px) {
+  .report-actions-card {
+    flex-direction:column;
+  }
+
+  .report-actions-card button {
+    width:100%;
+  }
+}

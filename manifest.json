@@ -1,7 +1,7 @@
 {
   "name": "TIMIK Agriculture Engine Rebuild Record",
   "short_name": "TIMIK Engine",
-  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V25.1 Report Data + Progress Fix",
+  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V26 Arrival Intake + Clean Reports",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

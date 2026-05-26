@@ -1,0 +1,33 @@
+TIMIK Engine Rebuild Record — V26 Arrival Intake + Clean Reports
+
+Base:
+- Built from V25.1 Report Data + Progress Fix.
+
+Added:
+- Separate Arrival / Intake Report export.
+- Dedicated Arrival Intake print button.
+- Cleaned professional report structure.
+- Arrival now acts as a standalone intake/reference record.
+- Intake report designed for quick workshop-to-office communication.
+
+Removed:
+- Recorded Workflow Choices section from exported PDFs.
+
+Preserved:
+- Editable job number.
+- Saved Jobs professional page.
+- Password protection.
+- Photos.
+- Timer and timer-to-diary/report integration.
+- Accordion sections.
+- Progress summary.
+- Daily Diary.
+- Weekly Report.
+- Settings.
+- Customer database.
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+
