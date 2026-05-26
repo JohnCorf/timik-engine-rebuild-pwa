@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V25 Professional Job Export Report";
+  const APP_VERSION = "V25.1 Report Data + Progress Fix";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -888,10 +888,99 @@ function toggleSection(name) {
     return v.length > 1;
   }
 
-  function workflowSectionProgress(job, sectionName) {
-    const values = getSectionValues(job, sectionName);
 
-    // Use a sensible minimum target per section so brand new jobs show 0/5, not 0/0.
+  function deepCollectJobValues(obj, prefix = "") {
+    const out = [];
+    if (!obj || typeof obj !== "object") return out;
+
+    Object.entries(obj).forEach(([key, value]) => {
+      const path = prefix ? `${prefix}.${key}` : key;
+
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        out.push(...deepCollectJobValues(value, path));
+      } else {
+        out.push({ key, path, value });
+      }
+    });
+
+    return out;
+  }
+
+  function normaliseKeyText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  }
+
+  function valueCountsForProgress(value) {
+    if (value === true) return true;
+    if (typeof value === "number") return value > 0;
+    if (typeof value !== "string") return false;
+
+    const v = value.trim().toLowerCase();
+    if (!v) return false;
+
+    // These are not positive progress states.
+    if (["pending", "not started", "not sent", "fail", "failed", "no", "n/a", "na"].includes(v)) return false;
+
+    // These are either complete or meaningful recorded work/inspection.
+    if ([
+      "complete", "completed", "done", "in progress", "pass", "passed", "monitor",
+      "sent", "returned", "not required", "yes", "ready", "fitted", "received"
+    ].includes(v)) return true;
+
+    // Notes/free text count as progress because the engineer has recorded information.
+    return v.length > 1;
+  }
+
+  function findJobValueByNames(job, names) {
+    const wanted = names.map(normaliseKeyText);
+    const values = deepCollectJobValues(job);
+
+    const exact = values.find(item => wanted.includes(normaliseKeyText(item.key)) || wanted.includes(normaliseKeyText(item.path)));
+    if (exact) return exact.value;
+
+    const partial = values.find(item => {
+      const k = normaliseKeyText(item.key);
+      const p = normaliseKeyText(item.path);
+      return wanted.some(w => k.includes(w) || p.includes(w));
+    });
+
+    return partial ? partial.value : "";
+  }
+
+  function renderReportValueFromNames(job, label, names) {
+    return reportRow(label, findJobValueByNames(job, names));
+  }
+
+  function collectSectionProgressItems(job, sectionName) {
+    const values = deepCollectJobValues(job);
+
+    const sectionTerms = {
+      "Arrival": ["arrival", "serial", "logged", "stored", "received", "courier", "delivery"],
+      "Strip Down": ["strip", "bore", "crank", "head", "oil", "metal", "damage", "wash", "washed", "clean", "contamination"],
+      "Non Workshop": ["nonworkshop", "external", "machin", "block", "crank", "head", "turbo", "starter", "alternator", "ocs"],
+      "Build": ["build", "bearing", "clearance", "torque", "valve", "assembled", "oilfilled", "partsprepared", "workspace"],
+      "Dyno": ["dyno", "cold", "hot", "oilpressure", "leak", "load", "test"],
+      "Packaging": ["pack", "paint", "heat", "bung", "wrap", "pallet", "label", "shipping"]
+    };
+
+    const terms = sectionTerms[sectionName] || [];
+    const ignored = ["id", "jobno", "customer", "engineer", "createdat", "updatedat", "status"];
+
+    return values.filter(item => {
+      const path = normaliseKeyText(item.path);
+      const key = normaliseKeyText(item.key);
+      if (ignored.includes(key)) return false;
+      if (Array.isArray(item.value)) return false;
+      return terms.some(term => path.includes(normaliseKeyText(term)));
+    });
+  }
+
+
+  function workflowSectionProgress(job, sectionName) {
+    const items = collectSectionProgressItems(job, sectionName);
+
     const minimumTargets = {
       "Arrival": 5,
       "Strip Down": 8,
@@ -901,8 +990,8 @@ function toggleSection(name) {
       "Packaging": 6
     };
 
-    const total = Math.max(minimumTargets[sectionName] || 5, values.length);
-    const done = Math.min(total, values.filter(valueCountsAsProgress).length);
+    const total = Math.max(minimumTargets[sectionName] || 5, items.length);
+    const done = Math.min(total, items.filter(item => valueCountsForProgress(item.value)).length);
     const percent = total ? Math.round((done / total) * 100) : 0;
 
     return { done, total, percent, label: `${done}/${total}` };
@@ -1691,6 +1780,16 @@ function renderSettings() {
     `;
   }
 
+
+  function partValue(part, names) {
+    if (!part) return "";
+    for (const name of names) {
+      if (part[name] !== undefined && part[name] !== null && String(part[name]).trim() !== "") return part[name];
+    }
+    return "";
+  }
+
+
   function renderProfessionalJobReport(job) {
     const progress = typeof overallWorkflowProgress === "function" ? overallWorkflowProgress(job) : { percent: 0, done: 0, total: 0 };
     const parts = job.parts || [];
@@ -1722,11 +1821,11 @@ function renderSettings() {
         <tbody>
           ${parts.map(p => `
             <tr>
-              <td>${cleanReportValue(p.partNumber || p.number, "")}</td>
-              <td>${cleanReportValue(p.description || p.name, "")}</td>
-              <td>${cleanReportValue(p.qty || p.quantity, "")}</td>
-              <td>${cleanReportValue(p.type, "")}</td>
-              <td>${cleanReportValue(p.notes, "")}</td>
+              <td>${cleanReportValue(partValue(p, ["partNumber", "number", "partNo", "code", "sku"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["description", "name", "partDescription", "desc"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["qty", "quantity", "amount"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["type", "status", "partType"]), "")}</td>
+              <td>${cleanReportValue(partValue(p, ["notes", "note", "comment"]), "")}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -1816,58 +1915,85 @@ function renderSettings() {
         ${renderReportSection("Arrival", [
           reportRow("Arrival Notes", job.arrivalNotes),
           reportRow("Courier / Delivery Notes", job.deliveryNotes),
-          reportRow("Engine Logged", job.engineLogged),
-          reportRow("Engine Stored", job.engineStored)
+          renderReportValueFromNames(job, "Engine Logged", ["engineLogged", "logged"]),
+          renderReportValueFromNames(job, "Engine Stored", ["engineStored", "stored"])
         ].join(""))}
 
         ${renderReportSection("Strip Down", [
-          reportRow("Bore Condition", job.boreCondition),
-          reportRow("Crank Condition", job.crankCondition),
-          reportRow("Head Condition", job.headCondition),
-          reportRow("Oil Condition", job.oilCondition),
-          reportRow("Metal Contamination", job.metalContamination),
-          reportRow("Damage Findings", job.damageFindings),
-          reportRow("Strip Notes", job.stripNotes),
-          reportRow("Cleaning Notes", job.cleaningNotes)
+          renderReportValueFromNames(job, "Bore Condition", ["boreCondition", "bore"]),
+          renderReportValueFromNames(job, "Crank Condition", ["crankCondition", "crank"]),
+          renderReportValueFromNames(job, "Head Condition", ["headCondition", "head"]),
+          renderReportValueFromNames(job, "Oil Condition", ["oilCondition", "oil"]),
+          renderReportValueFromNames(job, "Metal Contamination", ["metalContamination", "contamination"]),
+          renderReportValueFromNames(job, "Damage Findings", ["damageFindings", "damage"]),
+          renderReportValueFromNames(job, "Strip Notes", ["stripNotes", "strip"]),
+          renderReportValueFromNames(job, "Cleaning Notes", ["cleaningNotes", "cleaning"])
         ].join(""))}
 
         ${renderReportSection("Non Workshop", [
-          reportRow("Block Machining", job.blockMachining || job.block),
-          reportRow("Crank Grinding", job.crankGrinding || job.crank),
-          reportRow("Head Reman", job.headReman || job.head),
-          reportRow("Turbo Reman", job.turboReman || job.turbo),
+          renderReportValueFromNames(job, "Block Machining", ["blockMachining", "block"]),
+          renderReportValueFromNames(job, "Crank Grinding", ["crankGrinding", "crank"]),
+          renderReportValueFromNames(job, "Head Reman", ["headReman", "head"]),
+          renderReportValueFromNames(job, "Turbo Reman", ["turboReman", "turbo"]),
           reportRow("Starter / Alternator", job.starterAlternator || [job.starter, job.alternator].filter(Boolean).join(" / ")),
-          reportRow("External Notes", job.externalNotes)
+          renderReportValueFromNames(job, "External Notes", ["externalNotes", "nonWorkshopNotes", "outsideNotes"])
         ].join(""))}
 
         ${renderReportSection("Build", [
-          reportRow("Measurements", job.measurements),
-          reportRow("Bearing Clearances", job.bearingClearances),
-          reportRow("Torque Settings", job.torqueSettings),
-          reportRow("Valve Clearances", job.valveClearances),
-          reportRow("Build Notes", job.buildNotes)
+          renderReportValueFromNames(job, "Measurements", ["measurements"]),
+          renderReportValueFromNames(job, "Bearing Clearances", ["bearingClearances", "clearances"]),
+          renderReportValueFromNames(job, "Torque Settings", ["torqueSettings", "torque"]),
+          renderReportValueFromNames(job, "Valve Clearances", ["valveClearances", "valve"]),
+          renderReportValueFromNames(job, "Build Notes", ["buildNotes"])
         ].join(""))}
 
         ${renderReportSection("Dyno", [
-          reportRow("Cold Start", job.coldStart),
-          reportRow("Hot Start", job.hotStart),
-          reportRow("Cold Oil Pressure", job.coldOilPressure),
-          reportRow("Hot Oil Pressure", job.hotOilPressure),
-          reportRow("Leak Check", job.leakCheck),
-          reportRow("Full Load Test", job.fullLoadTest),
-          reportRow("Dyno Notes", job.dynoNotes)
+          renderReportValueFromNames(job, "Cold Start", ["coldStart"]),
+          renderReportValueFromNames(job, "Hot Start", ["hotStart"]),
+          renderReportValueFromNames(job, "Cold Oil Pressure", ["coldOilPressure"]),
+          renderReportValueFromNames(job, "Hot Oil Pressure", ["hotOilPressure"]),
+          renderReportValueFromNames(job, "Leak Check", ["leakCheck", "leak"]),
+          renderReportValueFromNames(job, "Full Load Test", ["fullLoadTest", "loadTest"]),
+          renderReportValueFromNames(job, "Dyno Notes", ["dynoNotes"])
         ].join(""))}
 
         ${renderReportSection("Packaging", [
-          reportRow("Painted", job.painted),
-          reportRow("Heat Tabs Fitted", job.heatTabsFitted),
-          reportRow("Bungs Fitted", job.bungsFitted),
-          reportRow("Wrapped", job.wrapped),
-          reportRow("Palletised", job.palletised),
-          reportRow("Shipping Label", job.shippingLabel),
-          reportRow("Packaging Notes", job.packagingNotes),
-          reportRow("Shipping Notes", job.shippingNotes)
+          renderReportValueFromNames(job, "Painted", ["painted", "paint"]),
+          renderReportValueFromNames(job, "Heat Tabs Fitted", ["heatTabsFitted", "heatTabs"]),
+          renderReportValueFromNames(job, "Bungs Fitted", ["bungsFitted", "bungs"]),
+          renderReportValueFromNames(job, "Wrapped", ["wrapped", "wrap"]),
+          renderReportValueFromNames(job, "Palletised", ["palletised", "pallet"]),
+          renderReportValueFromNames(job, "Shipping Label", ["shippingLabel", "label"]),
+          renderReportValueFromNames(job, "Packaging Notes", ["packagingNotes", "packaging"]),
+          renderReportValueFromNames(job, "Shipping Notes", ["shippingNotes", "shipping"])
         ].join(""))}
+
+        
+        <section class="print-section">
+          <h2>Recorded Workflow Choices</h2>
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th>Field</th>
+                <th>Recorded Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${deepCollectJobValues(job)
+                .filter(item => item.value !== undefined && item.value !== null && String(item.value).trim() !== "")
+                .filter(item => !["id", "jobNo", "createdAt", "updatedAt"].includes(item.key))
+                .filter(item => !Array.isArray(item.value))
+                .slice(0, 120)
+                .map(item => `
+                  <tr>
+                    <td>${moneySafe(item.path)}</td>
+                    <td>${moneySafe(String(item.value))}</td>
+                  </tr>
+                `).join("")}
+            </tbody>
+          </table>
+        </section>
+
 
         <section class="print-section">
           <h2>Parts Used / Required</h2>

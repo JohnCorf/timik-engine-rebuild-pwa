@@ -1,0 +1,31 @@
+TIMIK Engine Rebuild Record — V25.1 Report Data + Progress Fix
+
+Base:
+- Built from V25 Professional Job Export Report.
+
+Fixed:
+- Progress bars now read job data more flexibly, including nested workflow/check values.
+- Completion now counts meaningful recorded statuses such as Complete, In Progress, Pass, Monitor, Sent, Returned and Not Required.
+- PDF/report now includes a Recorded Workflow Choices section so saved checkbox/status values appear on the report.
+- Parts table now reads more possible part-number field names:
+  partNumber, number, partNo, code and sku.
+- Parts table also handles description/name, qty/quantity and notes/note variations.
+
+Preserved:
+- Editable job number
+- Saved Jobs page
+- Password protection
+- Photos
+- Timer and timer-to-diary/report integration
+- Accordion sections
+- Progress summary
+- Daily Diary
+- Weekly Report
+- Settings
+- Customer database
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+
