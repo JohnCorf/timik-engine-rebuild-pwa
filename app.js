@@ -3,7 +3,7 @@
   "use strict";
 
   const STORAGE_KEY = "timik_engine_rebuild_record_v12";
-  const APP_VERSION = "V24.1 Saved Jobs + Editable Job Number Repair";
+  const APP_VERSION = "V25 Professional Job Export Report";
   const DEFAULT_PASSWORD = "timik";
   const DEFAULT_ENGINEERS = ["Dave", "Tom", "James", "Workshop"];
   const PHOTO_STAGES = [
@@ -1662,9 +1662,275 @@ function renderSettings() {
     ].join("\n");
   }
 
-  function printJob() {
-    saveCurrentJob();
-    window.print();
+  
+  function jobTotalHours(job) {
+    return Math.round(((job.timeEntries || []).reduce((sum, e) => sum + (Number(e.hours) || 0), 0)) * 100) / 100;
+  }
+
+  function cleanReportValue(value, fallback = "Not recorded") {
+    const v = value === undefined || value === null ? "" : String(value).trim();
+    return moneySafe(v || fallback);
+  }
+
+  function reportRow(label, value) {
+    return `<tr><th>${moneySafe(label)}</th><td>${cleanReportValue(value)}</td></tr>`;
+  }
+
+  function reportStatus(label, value) {
+    if (value === undefined || value === null || String(value).trim() === "") return "";
+    return `<div class="report-status-row"><span>${moneySafe(label)}</span><strong>${moneySafe(value)}</strong></div>`;
+  }
+
+  function renderReportSection(title, rowsHtml, notes = "") {
+    return `
+      <section class="print-section">
+        <h2>${moneySafe(title)}</h2>
+        ${rowsHtml ? `<table class="print-table">${rowsHtml}</table>` : ""}
+        ${notes ? `<div class="print-notes">${moneySafe(notes)}</div>` : ""}
+      </section>
+    `;
+  }
+
+  function renderProfessionalJobReport(job) {
+    const progress = typeof overallWorkflowProgress === "function" ? overallWorkflowProgress(job) : { percent: 0, done: 0, total: 0 };
+    const parts = job.parts || [];
+    const timers = job.timeEntries || [];
+
+    const workflowSummary = ["Arrival", "Strip Down", "Non Workshop", "Build", "Dyno", "Packaging"].map(section => {
+      let p = { percent: 0, done: 0, total: 0 };
+      try { p = workflowSectionProgress(job, section); } catch (e) {}
+      return `
+        <div class="print-progress-item">
+          <span>${section}</span>
+          <strong>${p.percent || 0}%</strong>
+          <div class="print-progress-bar"><div style="width:${p.percent || 0}%"></div></div>
+        </div>
+      `;
+    }).join("");
+
+    const partsHtml = parts.length ? `
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th>Part Number</th>
+            <th>Description</th>
+            <th>Qty</th>
+            <th>Type</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${parts.map(p => `
+            <tr>
+              <td>${cleanReportValue(p.partNumber || p.number, "")}</td>
+              <td>${cleanReportValue(p.description || p.name, "")}</td>
+              <td>${cleanReportValue(p.qty || p.quantity, "")}</td>
+              <td>${cleanReportValue(p.type, "")}</td>
+              <td>${cleanReportValue(p.notes, "")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="print-muted">No parts recorded.</p>`;
+
+    const timersHtml = timers.length ? `
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Engineer</th>
+            <th>Hours</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${timers.map(t => `
+            <tr>
+              <td>${cleanReportValue(t.date, "")}</td>
+              <td>${cleanReportValue(t.engineer, "")}</td>
+              <td>${cleanReportValue(t.hours, "")}</td>
+              <td>${cleanReportValue(t.note, "")}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    ` : `<p class="print-muted">No timer entries recorded.</p>`;
+
+    return `
+      <div class="print-report">
+        <header class="print-report-header">
+          <div>
+            <div class="print-brand">TIMIK Agriculture</div>
+            <h1>Engine Rebuild Report</h1>
+            <p>Professional rebuild record and workshop summary</p>
+          </div>
+          <div class="print-job-box">
+            <span>Job Number</span>
+            <strong>${cleanReportValue(job.jobNo, "No Job Number")}</strong>
+          </div>
+        </header>
+
+        <section class="print-summary-grid">
+          <div>
+            <span>Customer</span>
+            <strong>${cleanReportValue(job.customer)}</strong>
+          </div>
+          <div>
+            <span>Engine</span>
+            <strong>${cleanReportValue([job.engineMake, job.engineModel].filter(Boolean).join(" "))}</strong>
+          </div>
+          <div>
+            <span>Serial Number</span>
+            <strong>${cleanReportValue(job.engineSerial)}</strong>
+          </div>
+          <div>
+            <span>Status</span>
+            <strong>${cleanReportValue(job.status || "In Progress")}</strong>
+          </div>
+          <div>
+            <span>Progress</span>
+            <strong>${progress.percent || 0}%</strong>
+          </div>
+          <div>
+            <span>Total Hours</span>
+            <strong>${jobTotalHours(job).toFixed(2)} hrs</strong>
+          </div>
+        </section>
+
+        <section class="print-section">
+          <h2>Workflow Progress</h2>
+          <div class="print-progress-grid">${workflowSummary}</div>
+        </section>
+
+        ${renderReportSection("Customer & Engine Details", [
+          reportRow("Customer", job.customer),
+          reportRow("Contact", job.contact),
+          reportRow("Phone", job.phone),
+          reportRow("Email", job.email),
+          reportRow("Engine Make", job.engineMake),
+          reportRow("Engine Model", job.engineModel),
+          reportRow("Engine Serial", job.engineSerial),
+          reportRow("Engineer", job.engineer)
+        ].join(""))}
+
+        ${renderReportSection("Arrival", [
+          reportRow("Arrival Notes", job.arrivalNotes),
+          reportRow("Courier / Delivery Notes", job.deliveryNotes),
+          reportRow("Engine Logged", job.engineLogged),
+          reportRow("Engine Stored", job.engineStored)
+        ].join(""))}
+
+        ${renderReportSection("Strip Down", [
+          reportRow("Bore Condition", job.boreCondition),
+          reportRow("Crank Condition", job.crankCondition),
+          reportRow("Head Condition", job.headCondition),
+          reportRow("Oil Condition", job.oilCondition),
+          reportRow("Metal Contamination", job.metalContamination),
+          reportRow("Damage Findings", job.damageFindings),
+          reportRow("Strip Notes", job.stripNotes),
+          reportRow("Cleaning Notes", job.cleaningNotes)
+        ].join(""))}
+
+        ${renderReportSection("Non Workshop", [
+          reportRow("Block Machining", job.blockMachining || job.block),
+          reportRow("Crank Grinding", job.crankGrinding || job.crank),
+          reportRow("Head Reman", job.headReman || job.head),
+          reportRow("Turbo Reman", job.turboReman || job.turbo),
+          reportRow("Starter / Alternator", job.starterAlternator || [job.starter, job.alternator].filter(Boolean).join(" / ")),
+          reportRow("External Notes", job.externalNotes)
+        ].join(""))}
+
+        ${renderReportSection("Build", [
+          reportRow("Measurements", job.measurements),
+          reportRow("Bearing Clearances", job.bearingClearances),
+          reportRow("Torque Settings", job.torqueSettings),
+          reportRow("Valve Clearances", job.valveClearances),
+          reportRow("Build Notes", job.buildNotes)
+        ].join(""))}
+
+        ${renderReportSection("Dyno", [
+          reportRow("Cold Start", job.coldStart),
+          reportRow("Hot Start", job.hotStart),
+          reportRow("Cold Oil Pressure", job.coldOilPressure),
+          reportRow("Hot Oil Pressure", job.hotOilPressure),
+          reportRow("Leak Check", job.leakCheck),
+          reportRow("Full Load Test", job.fullLoadTest),
+          reportRow("Dyno Notes", job.dynoNotes)
+        ].join(""))}
+
+        ${renderReportSection("Packaging", [
+          reportRow("Painted", job.painted),
+          reportRow("Heat Tabs Fitted", job.heatTabsFitted),
+          reportRow("Bungs Fitted", job.bungsFitted),
+          reportRow("Wrapped", job.wrapped),
+          reportRow("Palletised", job.palletised),
+          reportRow("Shipping Label", job.shippingLabel),
+          reportRow("Packaging Notes", job.packagingNotes),
+          reportRow("Shipping Notes", job.shippingNotes)
+        ].join(""))}
+
+        <section class="print-section">
+          <h2>Parts Used / Required</h2>
+          ${partsHtml}
+        </section>
+
+        <section class="print-section">
+          <h2>Time Recorded</h2>
+          ${timersHtml}
+        </section>
+
+        ${renderReportSection("Sign Off", [
+          reportRow("Engineer", job.engineer),
+          reportRow("Completion Date", job.completionDate),
+          reportRow("Warranty Notes", job.warrantyNotes),
+          reportRow("Final Notes", job.finalNotes)
+        ].join(""))}
+
+        <footer class="print-report-footer">
+          <span>TIMIK Agriculture Engine Rebuild Record</span>
+          <span>Powered by SouthWorx</span>
+        </footer>
+      </div>
+    `;
+  }
+
+  function printJobReport() {
+    const job = currentJob();
+    if (!job) return;
+
+    const reportHtml = renderProfessionalJobReport(job);
+    const win = window.open("", "_blank");
+    if (!win) {
+      showToast("Popup blocked. Please allow popups to print the report.");
+      return;
+    }
+
+    win.document.open();
+    win.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>TIMIK Job Report - ${moneySafe(job.jobNo || "Engine")}</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <style>${document.querySelector("style")?.innerHTML || ""}</style>
+          <link rel="stylesheet" href="styles.css" />
+        </head>
+        <body class="print-body">
+          ${reportHtml}
+          <script>
+            window.addEventListener('load', () => {
+              setTimeout(() => window.print(), 300);
+            });
+          </script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  }
+
+
+function printJob() {
+    printJobReport();
   }
 
   function emailJob() {

@@ -1,0 +1,35 @@
+TIMIK Engine Rebuild Record — V25 Professional Job Export Report
+
+Base:
+- Built from V24.1 Saved Jobs + Editable Job Number Repair.
+
+Added:
+- Professional print/export job report.
+- TIMIK Agriculture report header.
+- SouthWorx footer.
+- Job number, customer and engine summary.
+- Status, progress and total hours.
+- Workflow progress summary.
+- Arrival, Strip Down, Non Workshop, Build, Dyno, Packaging and Sign Off sections.
+- Parts table.
+- Timer/time recorded table.
+- Print-friendly styling.
+
+Preserved:
+- Editable job numbers.
+- Saved Jobs professional page.
+- Password protection.
+- Photos.
+- Timer and timer-to-diary/report integration.
+- Accordion sections.
+- Progress summary.
+- Daily Diary.
+- Weekly Report.
+- Settings.
+- Customer database.
+
+app.js syntax check: PASS
+
+
+service-worker.js syntax check: PASS
+

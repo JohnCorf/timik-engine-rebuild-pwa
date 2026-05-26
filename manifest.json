@@ -1,7 +1,7 @@
 {
   "name": "TIMIK Agriculture Engine Rebuild Record",
   "short_name": "TIMIK Engine",
-  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V24.1 Saved Jobs + Editable Job Number Repair",
+  "description": "TIMIK Agriculture Engine Rebuild Record PWA - V25 Professional Job Export Report",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
